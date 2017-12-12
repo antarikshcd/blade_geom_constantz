@@ -11,98 +11,93 @@ Created on Thu Dec  7 16:58:33 2017
 @author: antariksh
 
 """
+import time
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import pyplot as plt
+from parametric_space import bilinear_surface #user-defined method to perform bilinear
+                                         #grid interpolation
+#from generate_loftedblade import kb6_loftedblade
 import pickling #user-defined module to store and load python data as pickles
+from vector_operations import calculate_distance
+
 
 #format of surface_orig is [i, j, k] where i= Number of cross-sections,
 # j= Number of spanwise sections, k= (x, y, z)
-surface_orig= pickling.load_obj('KB6_surf_noshearsweep') 
+#surface_orig= pickling.load_obj('KB6_surf_noshearsweep') 
 
-Ncs= surface_orig.shape[0] # number of cross-sections
-Ns= surface_orig.shape[1] #number of spanwise sections
 #create grid between 0 and 1 from input data
 #grid_c= cross-sectional discretisation
 #grid_s= spanwise discretisation 
-grid_c, grid_s= np.mgrid[0:1:complex(Ncs), 0:1: complex(Ns)]
+#---------------------------------------------------------------------------
 
-# values in main body co-ordinate system atached at the root centre
-values_x= surface_orig[:,:, 0] #chordwise
-values_y= surface_orig[:,:,1] #pressure to suction side
-values_z= surface_orig[:,:,2] #blade radius
+#--------------------Step 1-------------------------------------------------
+# Set optimization file path
+optimization_file= '../../optimization.sqlite'
+# set the iteration to choose from
+iteration = 22
+# set the number of chordwise N_c and spanwise sections N_s for the surface
+N_c= 1000
+N_s= 1000
+#generate the lofted surface
+#surface = kb6_loftedblade(optimization_file, iteration, N_c, N_s)
+surface= pickling.load_obj('KB6_surf_1000by1000') 
 
-# create a finer grid to interpolate the data points say 
-#  (1000 cross-section, 500 span-wise)
-Ncs_desired= 500
-Ns_desired= 200
-#create the desired grid
-grid_c_desired, grid_s_desired= np.mgrid[0:1:
-                             complex(Ncs_desired), 0:1: complex(Ns_desired)]
 
-    
-#---------------------- perform bilinear interpolation----------------------
-#1) find the 4 known data points closest to the point to be interpolated
+#----------------Step 2------------------------------------------------
+# first guess of the s-t space
+grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
 
-# stores the positions of the four neighbourhood points for each corresponding 
-# interpolant grid location
-grid_map= np.empty((Ncs_desired, Ns_desired), dtype= object)             
-for i in range(Ncs_desired):
-    #store the x-coordinate of the desired point
-    x= grid_c_desired[i, 0]
-    #obtain the closest index of the x-coordinate in the original grid
-    idx= (np.abs(x - grid_c)).argmin(axis=0)[0]
-    
-    for j in range(Ns_desired):
-        #store the y-coordinate of the desired point
-        y= grid_s_desired[0, j]
-        # obtain the closest index of the y-coordinate in the desired grid
-        idy= (np.abs(y - grid_s).argmin(axis=1))[0]
-        # point in the known grid closest to the desired point
-        Px1= grid_c[idx, idy]
-        Py1= grid_s[idx, idy]
-        
-        # obtain the neighbourhood
-        low_bound= 0
-        up_bound= 1
-        
-        # obtain the second y-coordinate
-        if Py1 == up_bound or y< Py1:
-           
-           Py2 = grid_s[idx, idy - 1]
-        
-        #elif Py1 == low_bound:    
-         #  Py2 = grid_s[idx, idy + 1]
-        
-        #elif y> Py1:
-        else:
-            Py2 = grid_s[idx, idy + 1]
-     
-       # obtain the second x-coordinate
-        if Px1 == up_bound or x< Px1:
-           Px2 = grid_s[idx - 1, idy]
-        
-       # elif Px1 == low_bound:    
-           #Px2 = grid_s[idx + 1, idy]
-        
-        #elif x> Px1:
-        #    Px2 = grid_s[idx +1 , idy]
-        else:
-            Px2 = grid_s[idx + 1, idy] 
-    
-        # sort the neighbourhood in ascending order
-        x1= min(Px1, Px2)
-        x2= max(Px1, Px2)
-        y1= min(Py1, Py2)
-        y2= max(Py1, Py2)
-    
-        grid_map[i, j]= [(x1,y1), (x2, y2)]    
-    
-    
-    
+#------------test for Q generation---------------------------------------------
+S= np.zeros((10, 1), dtype= float) #spanwise section
+S.fill(1)
+T= np.zeros((10, 1), dtype= float) #chordwise section
+T[0:, 0]= np.arange(0, 10)
+#-------------------------------------------------------------------
+# obtain the X,Y,Z points for the S and T vectors
+# Q[N, 3] where N=number of points in the slice
+Q= bilinear_surface(surface, grid_s, grid_t, S, T)
+#----------------------------------------------------------------------------
+#---------------------------------------------------------------------------
+
+#------------------------Step 3---------------------------------------------
+#calculate distance between consecutive x,y,z in the slice
+D= calculate_distance(Q[:, 0], Q[:, 1], Q[:, 2])
+
+#------------------------Step 4---------------------------------------------
+# store the gradients of each stage
+
+# gradient of S-T space
+ST_space= S
+ST_space= np.c_[ST_space[:,0], T[:,0]]
+grad_ST= np.gradient(ST_space, axis=1)
+
+#gradients of Q(X,Y,Z) at the s-t points wrt x,y,z
+grad_Q= np.gradient(Q, axis=1)
+
+#gradients of D(d1,d2,d3....dn)
+grad_D= np.gradient(D)
+
+#------------------Step 5------------------------------------------------
+#Newton Rhapson solver
+
+
+
+#t0= time.time()
+
+#surface_new= bilinear_surface(surface, Ncs_desired, Ns_desired)                                  
+#t1= time.time()
+
+#print('Time taken to interpolate for Ncs= %i, Ns= %i is %3.2f seconds.'
+#       %(Ncs_desired, Ns_desired, (t1-t0)))
+#print('Time taken to interpolate on Ncs= ' + repr(Ncs_desired) + ' and Ns= ' +
+#        repr(Ns_desired)+ ' is ' + repr(t1-t0) + ' seconds.\n')
+
+
+
 # check grid
 #fig = plt.figure()
 #ax = fig.add_subplot(111, projection='3d')
-#ax.plot_surface(values_x, values_y, values_z)
+#ax.plot_surface(Q[:,0], Q[:,1], Q[:,2])
 #ax.set_zlabel('blade radius')
 #plt.show()
