@@ -140,4 +140,4 @@ def bilinear_surface(surface_orig, grid_s, grid_t, S, T):
        Q[i, 2]= (float(Bz[0]) + float(Bz[1])*x_desired + 
                  float(Bz[2])*y_desired + float(Bz[3])*x_desired*y_desired)
 
-   return Q          
+   return Q, grid_map, val_map          

@@ -20,6 +20,8 @@ from parametric_space import bilinear_surface #user-defined method to perform bi
 #from generate_loftedblade import kb6_loftedblade
 import pickling #user-defined module to store and load python data as pickles
 from vector_operations import calculate_distance
+from vector_operations import jacobian_Q
+from vector_operations import jacobian_D
 
 
 #format of surface_orig is [i, j, k] where i= Number of cross-sections,
@@ -56,27 +58,27 @@ T[0:, 0]= np.arange(0, 10)
 #-------------------------------------------------------------------
 # obtain the X,Y,Z points for the S and T vectors
 # Q[N, 3] where N=number of points in the slice
-Q= bilinear_surface(surface, grid_s, grid_t, S, T)
+Q, grid_map, val_map= bilinear_surface(surface, grid_s, grid_t, S, T)
 #----------------------------------------------------------------------------
 #---------------------------------------------------------------------------
 
 #------------------------Step 3---------------------------------------------
-#calculate distance between consecutive x,y,z in the slice
-D= calculate_distance(Q[:, 0], Q[:, 1], Q[:, 2])
+#calculate distance between consecutive x,y,z in the slice also add the final 
+#point and first point to close the loop
+D= calculate_distance(Q[:, 0], Q[:, 1], Q[:, 2], flag= True)
 
 #------------------------Step 4---------------------------------------------
-# store the gradients of each stage
+# calculate the analytic gradients of each stage
 
-# gradient of S-T space
-ST_space= S
-ST_space= np.c_[ST_space[:,0], T[:,0]]
-grad_ST= np.gradient(ST_space, axis=1)
+# jacobian as a sparse matrix for Q-->(x,y,z) wrt P-->(s,t) of size 3Nx2N
+jac_qp= jacobian_Q(S, T, grid_map, val_map)
 
-#gradients of Q(X,Y,Z) at the s-t points wrt x,y,z
-grad_Q= np.gradient(Q, axis=1)
+# jacobian as a sparse matrix for D-->(di) wrt Q-->(x,y,z) of size Nx3N
+jac_dq= jacobian_D(Q, D)
 
-#gradients of D(d1,d2,d3....dn)
-grad_D= np.gradient(D)
+# jacobian as a sparse matrix for D-->(di) wrt P-->(s,t) of size Nx2N
+jac_dp= jac_dq*jac_qp
+
 
 #------------------Step 5------------------------------------------------
 #Newton Rhapson solver
