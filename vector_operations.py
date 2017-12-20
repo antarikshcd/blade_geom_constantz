@@ -80,8 +80,8 @@ def jacobian_Q(S, T, grid_map, val_map):
     # store dxds, dxdt, dyds, dydt, dzds, dzdt in that order
     # for every 1 point there will be 6 non-zero partials, for N --> 6*N
     data= np.zeros(6*n_points, dtype= float)
-    row= np.zeros(6*n_points, dtype= float)
-    col= np.zeros(6*n_points, dtype= float)
+    row= np.zeros(6*n_points, dtype= int)
+    col= np.zeros(6*n_points, dtype= int)
     
     # inititalize the row andcolumn indices for the partials being stored
     #row_x= 0
@@ -257,8 +257,8 @@ def jacobian_D(Q, D):
     # store dxds, dxdt, dyds, dydt, dzds, dzdt in that order
     # for every 1 distance, there will be 6 non-zero partials
     data= np.zeros(6*n_points, dtype= float)
-    row= np.zeros(6*n_points, dtype= float)
-    col= np.zeros(6*n_points, dtype= float)
+    row= np.zeros(6*n_points, dtype= int)
+    col= np.zeros(6*n_points, dtype= int)
     
         
     #store the partial derivatives
@@ -352,13 +352,15 @@ def jacobian_main(dZds, dZdt, jac_dp, n_points):
 # and lastly grad(dc) (2N+1 X 1)
     
     data= jac_dp.data
-    row= jac_dp.rows # ind= 0 to ind N-1
-    col= jac_dp.col  # ind= 0 to ind 2N-1
+    
+    row= jac_dp.nonzero()[0]
+    col= jac_dp.nonzero()[1]  # ind= 0 to ind 2N-1
+    
     
     # adding delz/delP
     ind_dzdp= np.arange(0, 2*n_points, 2)
-    row_dzdp= np.zeros(2*n_points, dtype=float)
-    col_dzdp= np.zeros(2*n_points, dtype=float)
+    row_dzdp= np.zeros(2*n_points, dtype=int)
+    col_dzdp= np.zeros(2*n_points, dtype=int)
     data_dzdp= np.zeros(2*n_points, dtype=float)
     # fill in data 
     data_dzdp[ind_dzdp]= dZds

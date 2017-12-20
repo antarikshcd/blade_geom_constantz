@@ -77,11 +77,11 @@ Pk_in[ind_tin]= tin
 grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
 
 #------------test for Q generation---------------------------------------------
-S= np.zeros((10, 1), dtype= float) #spanwise section
-S.fill(1)
-T= np.zeros((10, 1), dtype= float) #chordwise section
-T[0:, 0]= np.arange(0, 10)
-
+#S= np.zeros((10, 1), dtype= float) #spanwise section
+#S.fill(1)
+#T= np.zeros((10, 1), dtype= float) #chordwise section
+#T[0:, 0]= np.arange(0, 10)
+#----------------------------------------------------------------------------
 for i in range(Ns_desired):
   #flag for exiting the while loop
   exit_flag= 1
@@ -100,6 +100,12 @@ for i in range(Ns_desired):
 #-------------------------------------------------------------------
 # obtain the X,Y,Z points for the S and T vectors
 # Q[N, 3] where N=number of points in the slice
+    
+      
+      
+    S= Pk[ind_sin] 
+    T= Pk[ind_tin]
+    
     Q, grid_map, val_map= bilinear_surface(surface, grid_s, grid_t, S, T)
 #----------------------------------------------------------------------------
 #---------------------------------------------------------------------------
@@ -158,11 +164,11 @@ for i in range(Ns_desired):
 #-----------------Step 7---------------------------------------------------
 # store the k+1 values of the P vector
 # P = [s1, t1, s2, t2...si,ti...., dc] order: (2N+1) x 1
-    jac_main_inv= np.linalg.pinv(jac_main)
+    jac_main_inv= np.linalg.pinv(jac_main.toarray())
     
     Pk1= Pk - np.dot(jac_main_inv, R) 
     
-    
+    Pk=Pk1
 
 # check grid
 #fig = plt.figure()
