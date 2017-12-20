@@ -210,7 +210,7 @@ def jacobian_Q(S, T, grid_map, val_map):
     #store the jacobian in the COO sparse format
     jac_q= coo_matrix((data,(row, col)), shape= (3*n_points, 2*n_points))
     
-    return jac_q
+    return jac_q, dZds, dZdt
 
 def jacobian_D(Q, D):
     """ Stores the jacobian of the distances between consecutive points on the
@@ -336,4 +336,58 @@ def jacobian_D(Q, D):
     
     jac_d= coo_matrix((data,(row, col)), shape= (n_points, 3*n_points))
     
-    return jac_d    
+    return jac_d
+
+def jacobian_main(dZds, dZdt, jac_dp, n_points):
+    """ Constructs the main jacobian matrix of size 2N x (2N+1)
+    """
+    #
+    #jac_main= np.zeros((2*n_points, 2*n_points + 1), dtype= float)
+      
+    #data= np.zeros(6*n_points, dtype= float)
+    #row= np.zeros(6*n_points, dtype= float)
+    #col= np.zeros(6*n_points, dtype= float)
+
+# format: first fill in jac_dp (Nx2N), then jac(Z) (Nx2N) followed by grad(t-tc) (1X2N)
+# and lastly grad(dc) (2N+1 X 1)
+    
+    data= jac_dp.data
+    row= jac_dp.rows # ind= 0 to ind N-1
+    col= jac_dp.col  # ind= 0 to ind 2N-1
+    
+    # adding delz/delP
+    ind_dzdp= np.arange(0, 2*n_points, 2)
+    row_dzdp= np.zeros(2*n_points, dtype=float)
+    col_dzdp= np.zeros(2*n_points, dtype=float)
+    data_dzdp= np.zeros(2*n_points, dtype=float)
+    # fill in data 
+    data_dzdp[ind_dzdp]= dZds
+    data_dzdp[ind_dzdp + 1]= dZdt
+    #fill in row
+    row_ind_dzdp= np.arange(n_points, 2*n_points, 1)
+    row_dzdp[ind_dzdp]= row_ind_dzdp
+    row_dzdp[ind_dzdp + 1]= row_ind_dzdp
+    #fill in column
+    col_ind_dzds= np.arange(0, 2*n_points, 2)
+    col_ind_dzdt= np.arange(1, 2*n_points, 2)
+    col_dzdp[ind_dzdp]= col_ind_dzds
+    col_dzdp[ind_dzdp + 1]= col_ind_dzdt
+    
+    # append it to the main jacobian row, column and data
+    data= np.append(data, data_dzdp)
+    row= np.append(row, row_dzdp)
+    col= np.append(col, col_dzdp)
+    
+    # make the del(t-tc)/del(P). only add non zero entities.
+    data_dtdp= 1.0
+    row_dtdp= 2*n_points
+    col_dtdp= 1
+        
+    #append it to the main jacobian row, column and data
+    data= np.append(data, data_dtdp)
+    row= np.append(row, row_dtdp)
+    col= np.append(col, col_dtdp)
+    
+    jac_main= coo_matrix((data,(row, col)), shape= (2*n_points+1, 2*n_points+1))
+    
+    return jac_main

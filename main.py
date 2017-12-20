@@ -22,6 +22,7 @@ import pickling #user-defined module to store and load python data as pickles
 from vector_operations import calculate_distance
 from vector_operations import jacobian_Q
 from vector_operations import jacobian_D
+from vector_operations import jacobian_main
 
 
 #format of surface_orig is [i, j, k] where i= Number of cross-sections,
@@ -44,8 +45,33 @@ N_s= 1000
 #generate the lofted surface
 #surface = kb6_loftedblade(optimization_file, iteration, N_c, N_s)
 surface= pickling.load_obj('KB6_surf_1000by1000') 
+ 
+#initialize the residual vector constants
+dc_in= 0 # distance constant that is dtermined by Newton method
 
+#initialize the constant tc
+tc= 0
 
+# desired spanwise elements
+Ns_desired= 1000 ##do not change
+Nc_desired= 1000
+
+n_points= Nc_desired
+
+surface_new= np.zeros((Nc_desired, Ns_desired, 3), dtype= float)
+#set value of zc
+zc_vec= np.linspace(0, 1, Ns_desired)
+
+#initialize the Pk vector with s and t points
+Pk_in= np.zeros(2*n_points+1, dtype=float)
+
+sin= np.arange(0, Ns_desired)
+tin= np.arange(0, n_points)
+ind_sin= np.arange(0, 2*n_points, 2)
+ind_tin= np.arange(1, 2*n_points, 2)
+
+#assign the cross-sectional initital guess
+Pk_in[ind_tin]= tin
 #----------------Step 2------------------------------------------------
 # first guess of the s-t space
 grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
@@ -55,47 +81,88 @@ S= np.zeros((10, 1), dtype= float) #spanwise section
 S.fill(1)
 T= np.zeros((10, 1), dtype= float) #chordwise section
 T[0:, 0]= np.arange(0, 10)
+
+for i in range(Ns_desired):
+  #flag for exiting the while loop
+  exit_flag= 1
+  # store initial zc 
+  zc= zc_vec[i]
+  #store initial dc
+  dc= dc_in
+  
+  Pk_in[ind_sin]= sin[i]
+  #initial guess for dc
+  Pk_in[-1]= dc
+  #initial guess for each span-wise section
+  Pk= Pk_in
+
+  while exit_flag:
 #-------------------------------------------------------------------
 # obtain the X,Y,Z points for the S and T vectors
 # Q[N, 3] where N=number of points in the slice
-Q, grid_map, val_map= bilinear_surface(surface, grid_s, grid_t, S, T)
+    Q, grid_map, val_map= bilinear_surface(surface, grid_s, grid_t, S, T)
 #----------------------------------------------------------------------------
 #---------------------------------------------------------------------------
 
 #------------------------Step 3---------------------------------------------
 #calculate distance between consecutive x,y,z in the slice also add the final 
 #point and first point to close the loop
-D= calculate_distance(Q[:, 0], Q[:, 1], Q[:, 2], flag= True)
+    D= calculate_distance(Q[:, 0], Q[:, 1], Q[:, 2], flag= True)
 
 #------------------------Step 4---------------------------------------------
 # calculate the analytic gradients of each stage
 
 # jacobian as a sparse matrix for Q-->(x,y,z) wrt P-->(s,t) of size 3Nx2N
-jac_qp= jacobian_Q(S, T, grid_map, val_map)
+    jac_qp, dZds, dZdt= jacobian_Q(S, T, grid_map, val_map)
 
 # jacobian as a sparse matrix for D-->(di) wrt Q-->(x,y,z) of size Nx3N
-jac_dq= jacobian_D(Q, D)
+    jac_dq= jacobian_D(Q, D)
 
 # jacobian as a sparse matrix for D-->(di) wrt P-->(s,t) of size Nx2N
-jac_dp= jac_dq*jac_qp
+    jac_dp= jac_dq*jac_qp
 
+# construct the final jacobian matrix of order (2N+1)x(2N+1) with d-dc, z-zc, t-tc
+#partials
+    n_points= S.shape[0] # number of slice points
+
+    jac_main= jacobian_main(dZds, dZdt, jac_dp, n_points)
 
 #------------------Step 5------------------------------------------------
 #Newton Rhapson solver
 
+#construct the residual vector
+#NOTE: for the np.arraysuse np.dot for matrix multiplication where column vectors
+# and row vectors are automatically treated.
+    R= np.zeros((2*n_points + 1), dtype=float)
+
+# fill up the distance function di-dc
+    R[:n_points]= D - dc
+#fill up the z coordinate function z-zc
+    R[n_points:2*n_points]= Q[:, 2] - zc
+#fill up the t1-tc function 
+    R[-1]= T[0] - tc
 
 
-#t0= time.time()
-
-#surface_new= bilinear_surface(surface, Ncs_desired, Ns_desired)                                  
-#t1= time.time()
-
-#print('Time taken to interpolate for Ncs= %i, Ns= %i is %3.2f seconds.'
-#       %(Ncs_desired, Ns_desired, (t1-t0)))
-#print('Time taken to interpolate on Ncs= ' + repr(Ncs_desired) + ' and Ns= ' +
-#        repr(Ns_desired)+ ' is ' + repr(t1-t0) + ' seconds.\n')
-
-
+#-------------------Step 6--------------------------------------------------
+# add a check to exit the newton method
+# ex: np.max(R)<1e-5 
+    if np.max(R)<1e-5:
+        # set exit flag as False
+        exit_flag= 0
+        # store the last Q(x,y,z) points as the final section
+        surface_new[:, i, 0]= Q[:, 0]
+        surface_new[:, i, 1]= Q[:, 1]
+        surface_new[:, i, 2]= Q[:, 2]
+        break
+    
+#-----------------Step 7---------------------------------------------------
+# store the k+1 values of the P vector
+# P = [s1, t1, s2, t2...si,ti...., dc] order: (2N+1) x 1
+    jac_main_inv= np.linalg.pinv(jac_main)
+    
+    Pk1= Pk - np.dot(jac_main_inv, R) 
+    
+    
 
 # check grid
 #fig = plt.figure()
