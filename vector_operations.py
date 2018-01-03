@@ -374,17 +374,30 @@ def jacobian_main(dZds, dZdt, jac_dp, n_points):
     col_ind_dzdt= np.arange(1, 2*n_points, 2)
     col_dzdp[ind_dzdp]= col_ind_dzds
     col_dzdp[ind_dzdp + 1]= col_ind_dzdt
-    
     # append it to the main jacobian row, column and data
     data= np.append(data, data_dzdp)
     row= np.append(row, row_dzdp)
     col= np.append(col, col_dzdp)
     
+    #fill in the gradient of (d-dc) wrt to (dc) = -1
+    data_dc= np.zeros(n_points, dtype=float)
+    row_dc= np.zeros(n_points, dtype=int)
+    col_dc= np.zeros(n_points, dtype=int)
+    # fill in data
+    data_dc[:]= -1
+    # fill in row indices
+    row_dc[:]= row_ind_dzdp
+    # fill in column indices
+    col_dc[:]= 2*n_points
+    # append it to the main jacobian row, column and data
+    data= np.append(data, data_dc)
+    row= np.append(row, row_dc)
+    col= np.append(col, col_dc)
+    
     # make the del(t-tc)/del(P). only add non zero entities.
     data_dtdp= 1.0
     row_dtdp= 2*n_points
     col_dtdp= 1
-        
     #append it to the main jacobian row, column and data
     data= np.append(data, data_dtdp)
     row= np.append(row, row_dtdp)

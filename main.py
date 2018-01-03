@@ -95,7 +95,9 @@ for i in range(Ns_desired):
   Pk_in[-1]= dc
   #initial guess for each span-wise section
   Pk= Pk_in
-
+  
+  #counter
+  count=0 
   while exit_flag:
 #-------------------------------------------------------------------
 # obtain the X,Y,Z points for the S and T vectors
@@ -142,6 +144,8 @@ for i in range(Ns_desired):
     R= np.zeros((2*n_points + 1), dtype=float)
 
 # fill up the distance function di-dc
+    #update dc
+    dc= Pk[-1]
     R[:n_points]= D - dc
 #fill up the z coordinate function z-zc
     R[n_points:2*n_points]= Q[:, 2] - zc
@@ -170,6 +174,7 @@ for i in range(Ns_desired):
     
     Pk=Pk1
 
+    count+=1  
 # check grid
 #fig = plt.figure()
 #ax = fig.add_subplot(111, projection='3d')
