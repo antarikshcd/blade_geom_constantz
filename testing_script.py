@@ -20,7 +20,7 @@ from vector_operations import test_jacobian_Q
 from vector_operations import jacobian_D
 from vector_operations import test_jacobian_D
 from vector_operations import jacobian_main
-
+from vector_operations import test_jacobian_DP
 
 #format of surface_orig is [i, j, k] where i= Number of cross-sections,
 # j= Number of spanwise sections, k= (x, y, z)
@@ -172,18 +172,8 @@ jac_dp= jac_dq*jac_qp
 
 #--------------jacobain of D wrt P test obtained numerically------------------
 #jac_dp_test= jac_dq_test*jac_qp_test
-x_s1_h= Qf_s[:, 0]
-x_s2= np.append(Q[1:, 0], Q[0, 0])
-y_s1_h= Qf_s[:, 1]
-y_s2= np.append(Q[1:, 1], Q[0, 1])
-z_s1_h= Qf_s[:, 0]
-z_s2= np.append(Q[1:, 2], Q[0, 2])
 
-D_s1= np.power(np.power(x_s2 - x_s1_h, 2) + np.power(y_s2 - y_s1_h, 2) + 
-      np.power(z_s2 - z_s1_h, 2), 0.5)
-
-D_s2= 
-
+jac_dp_test, dDds1, dDds2, dDdt1, dDdt2= test_jacobian_DP(Q, Qf_s, Qf_t, D, h)
 #-------------------------------------------------------------------------- 
 # construct the final jacobian matrix of order (2N+1)x(2N+1) with d-dc, z-zc, t-tc
 #partials

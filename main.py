@@ -13,11 +13,10 @@ Created on Thu Dec  7 16:58:33 2017
 """
 import time
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import pyplot as plt
+#from mpl_toolkits.mplot3d import Axes3D
+#from matplotlib import pyplot as plt
 from parametric_space import bilinear_surface #user-defined method to perform bilinear
-                                         #grid interpolation
-#from generate_loftedblade import kb6_loftedblade
+                                              #grid interpolation
 import pickling #user-defined module to store and load python data as pickles
 from vector_operations import calculate_distance
 from vector_operations import jacobian_Q
@@ -44,8 +43,9 @@ N_c= 1000
 N_s= 1000
 #generate the lofted surface
 #surface = kb6_loftedblade(optimization_file, iteration, N_c, N_s)
+blade_length= 10.55 # in metres
 surface= pickling.load_obj('KB6_surf_1000by1000') 
- 
+surface= surface*blade_length 
 #initialize the residual vector constants
 dc_in= 0 # distance constant that is dtermined by Newton method
 
@@ -60,7 +60,7 @@ n_points= Nc_desired
 
 surface_new= np.zeros((Nc_desired, Ns_desired, 3), dtype= float)
 #set value of zc
-zc_vec= np.linspace(0, 1, Ns_desired)
+zc_vec= np.linspace(0, 1*blade_length, Ns_desired)
 
 #initialize the Pk vector with s and t points
 Pk_in= np.zeros(2*n_points+1, dtype=float)
@@ -98,63 +98,58 @@ for i in range(500,501):#(Ns_desired):
   #counter
   count=0 
   while exit_flag:
-#-------------------------------------------------------------------
-# obtain the X,Y,Z points for the S and T vectors
-# Q[N, 3] where N=number of points in the slice
-    
-      
-      
+  #-------------------------------------------------------------------
+    # obtain the X,Y,Z points for the S and T vectors 
+    # Q[N, 3] where N=number of points in the slice
     S= Pk[ind_sin] 
     T= Pk[ind_tin]
     
     Q, grid_map, val_map= bilinear_surface(surface, grid_s, grid_t, S, T)
-#----------------------------------------------------------------------------
-#---------------------------------------------------------------------------
-
-#------------------------Step 3---------------------------------------------
-#calculate distance between consecutive x,y,z in the slice also add the final 
-#point and first point to close the loop
+    #----------------------------------------------------------------------------
+    #------------------------Step 3---------------------------------------------
+    #calculate distance between consecutive x,y,z in the slice also add the final 
+    #point and first point to close the loop
     D= calculate_distance(Q[:, 0], Q[:, 1], Q[:, 2], flag= True)
 
-#------------------------Step 4---------------------------------------------
-# calculate the analytic gradients of each stage
+    #------------------------Step 4---------------------------------------------
+    # calculate the analytic gradients of each stage
 
-# jacobian as a sparse matrix for Q-->(x,y,z) wrt P-->(s,t) of size 3Nx2N
+    # jacobian as a sparse matrix for Q-->(x,y,z) wrt P-->(s,t) of size 3Nx2N
     jac_qp, _, _, _, _, dZds, dZdt= jacobian_Q(S, T, grid_map, val_map)
 
-# jacobian as a sparse matrix for D-->(di) wrt Q-->(x,y,z) of size Nx3N
+    # jacobian as a sparse matrix for D-->(di) wrt Q-->(x,y,z) of size Nx3N
     jac_dq, _, _, _, _, _, _= jacobian_D(Q, D)
 
-# jacobian as a sparse matrix for D-->(di) wrt P-->(s,t) of size Nx2N
+    # jacobian as a sparse matrix for D-->(di) wrt P-->(s,t) of size Nx2N
     jac_dp= jac_dq*jac_qp
 
-# construct the final jacobian matrix of order (2N+1)x(2N+1) with d-dc, z-zc, t-tc
-#partials
+    # construct the final jacobian matrix of order (2N+1)x(2N+1) with d-dc, z-zc, t-tc
+    # partials
     n_points= S.shape[0] # number of slice points
 
     jac_main= jacobian_main(dZds, dZdt, jac_dp, n_points)
 
-#------------------Step 5------------------------------------------------
-#Newton Rhapson solver
+    #------------------Step 5------------------------------------------------
+    #Newton Rhapson solver
 
-#construct the residual vector
-#NOTE: for the np.arraysuse np.dot for matrix multiplication where column vectors
-# and row vectors are automatically treated.
+    #construct the residual vector
+    #NOTE: for the np.arrays use np.dot for matrix multiplication where column vectors
+    # and row vectors are automatically treated.
     R= np.zeros((2*n_points + 1), dtype=float)
-
-# fill up the distance function di-dc
+ 
+    # fill up the distance function di-dc
     #update dc
     dc= Pk[-1]
     R[:n_points]= D - dc
-#fill up the z coordinate function z-zc
+    #fill up the z coordinate function z-zc
     R[n_points:2*n_points]= Q[:, 2] - zc
-#fill up the t1-tc function 
+    #fill up the t1-tc function 
     R[-1]= T[0] - tc
 
 
-#-------------------Step 6--------------------------------------------------
-# add a check to exit the newton method
-# ex: np.max(R)<1e-5 
+    #-------------------Step 6--------------------------------------------------
+    # add a check to exit the newton method
+    # ex: np.max(R)<1e-5 
     if np.max(R)<1e-5:
         # set exit flag as False
         exit_flag= 0
@@ -164,16 +159,18 @@ for i in range(500,501):#(Ns_desired):
         surface_new[:, i, 2]= Q[:, 2]
         break
     
-#-----------------Step 7---------------------------------------------------
-# store the k+1 values of the P vector
-# P = [s1, t1, s2, t2...si,ti...., dc] order: (2N+1) x 1
+    #-----------------Step 7---------------------------------------------------
+    #inverse the main jacobain array
     jac_main_inv= np.linalg.pinv(jac_main.toarray())
-    
+    # store the k+1 values of the P vector
+    # P = [s1, t1, s2, t2...si,ti...., dc] order: (2N+1) x 1
     Pk1= Pk - np.dot(jac_main_inv, R) 
-    
+    #update P
     Pk=Pk1
-
+    #increase count
     count+=1  
+    
+    
 # check grid
 #fig = plt.figure()
 #ax = fig.add_subplot(111, projection='3d')

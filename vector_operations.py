@@ -470,7 +470,86 @@ def test_jacobian_D(D, D_x1_h, D_x2_h, D_y1_h, D_y2_h, D_z1_h, D_z2_h, h):
     
     return jac_dq_test, dDdX1, dDdX2, dDdY1, dDdY2, dDdZ1, dDdZ2
 
-def test_jacobian_DP():
+def test_jacobian_DP(Q, Qf_s, Qf_t, D, h):
+    
+    # store the Q values by perturbing s+h,t 
+    x_s_h= np.append(Qf_s[:, 0], Qf_s[0, 0])
+    x_s= np.append(Q[:, 0], Q[0, 0])
+    y_s_h= np.append(Qf_s[:, 1], Qf_s[0, 1])
+    y_s= np.append(Q[:, 1], Q[0, 1])
+    z_s_h= np.append(Qf_s[:, 2], Qf_s[0, 2])
+    z_s= np.append(Q[:, 2], Q[0, 2])
+    
+    # store the Q values by perturbing s,t+h
+    x_t_h= np.append(Qf_t[:, 0], Qf_t[0, 0])
+    x_t= x_s
+    y_t_h= np.append(Qf_t[:, 1], Qf_t[0, 1])
+    y_t= y_s
+    z_t_h= np.append(Qf_t[:, 2], Qf_t[0, 2])
+    z_t= z_s
+
+    # caclulate distances for Di(s1+h, s2, t1, t2)
+    D_s1= np.power(np.power(x_s[1:] - x_s_h[:-1], 2) + np.power(y_s[1:] - 
+                   y_s_h[:-1], 2) + np.power(z_s[1:] - z_s_h[:-1], 2), 0.5)
+    
+    # caclulate distances for Di(s1, s2+h, t1, t2)
+    D_s2= np.power(np.power(x_s_h[1:] - x_s[:-1], 2) + np.power(y_s_h[1:] - 
+                   y_s[:-1], 2) + np.power(z_s_h[1:] - z_s[:-1], 2), 0.5)
+    
+    # caclulate distances for Di(s1, s2, t1+h, t2)
+    D_t1= np.power(np.power(x_t[1:] - x_t_h[:-1], 2) + np.power(y_t[1:] - 
+                   y_t_h[:-1], 2) + np.power(z_t[1:] - z_t_h[:-1], 2), 0.5)
+    
+    # caclulate distances for Di(s1, s2, t1, t2+h)
+    D_t2= np.power(np.power(x_t_h[1:] - x_t[:-1], 2) + np.power(y_t_h[1:] - 
+                   y_t[:-1], 2) + np.power(z_t_h[1:] - z_t[:-1], 2), 0.5)
+    
+    # gradient D wrt s1
+    dDds1= (D_s1 - D)/h
+    # gradient D wrt s2
+    dDds2= (D_s2 - D)/h
+    # gradient D wrt t1
+    dDdt1= (D_t1 - D)/h
+    # gradient D wrt t2
+    dDdt2= (D_t2 - D)/h
+    
+    # number of points on the slice   
+    n_points= D.shape[0]
+    #initialize nump arrays for the sparese matric data storage
+    data= np.zeros(4*n_points, dtype= float)
+    row= np.zeros(4*n_points, dtype= int)
+    col= np.zeros(4*n_points, dtype= int)
+    # indices for storing the data
+    ind= np.arange(0, 4*n_points, 4)
+    #store the data
+    data[ind]= dDds1
+    data[ind+1]= dDdt1
+    data[ind+2]= dDds2
+    data[ind+3]= dDdt2
+    #define the row and column indices to store the row and column info
+    row_ind= np.arange(0, n_points)
+    row[ind]= row_ind 
+    row[ind+1]= row_ind
+    row[ind+2]= row_ind
+    row[ind+3]= row_ind
+    # assign the column indices
+    col_ind_s1= np.arange(0, 2*n_points, 2) 
+    col_ind_t1= col_ind_s1 + 1
+    col_ind_s2= col_ind_s1 + 2
+    col_ind_t2= col_ind_s1 + 3
+    #adjust the last line to reflect a loop
+    col_ind_s2[-1]= 0
+    col_ind_t2[-1]= 1
+    #store the column indices
+    col[ind]= col_ind_s1
+    col[ind+1]= col_ind_t1
+    col[ind+2]= col_ind_s2
+    col[ind+3]= col_ind_t2
+    
+    #build the sparse jacobian
+    jac_dp_test= coo_matrix((data,(row, col)), shape= (n_points, 2*n_points))
+    
+    return jac_dp_test, dDds1, dDds2, dDdt1, dDdt2
 
 def jacobian_main(dZds, dZdt, jac_dp, n_points):
     """ Constructs the main jacobian matrix of size 2N x (2N+1)
@@ -520,7 +599,8 @@ def jacobian_main(dZds, dZdt, jac_dp, n_points):
     # fill in data
     data_dc[:]= -1
     # fill in row indices
-    row_dc[:]= row_ind_dzdp
+    row_ind_dDdp= np.arange(0, n_points)
+    row_dc= row_ind_dDdp
     # fill in column indices
     col_dc[:]= 2*n_points
     # append it to the main jacobian row, column and data
