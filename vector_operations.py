@@ -210,7 +210,75 @@ def jacobian_Q(S, T, grid_map, val_map):
     #store the jacobian in the COO sparse format
     jac_q= coo_matrix((data,(row, col)), shape= (3*n_points, 2*n_points))
     
-    return jac_q, dZds, dZdt
+    return jac_q, dXds, dXdt, dYds, dYdt, dZds, dZdt
+
+def test_jacobian_Q(Qin, Qf_s, Qf_t, h, Ns_desired):
+    
+    grad_Qs= (Qf_s-Qin)/h
+    grad_Qt= (Qf_t-Qin)/h
+    
+    n_points= Ns_desired
+    
+    #total sizeof the jacobian
+    #size= 2*3*(n_points**2)
+    
+    # store dxds, dxdt, dyds, dydt, dzds, dzdt in that order
+    # for every 1 point there will be 6 non-zero partials, for N --> 6*N
+    data= np.zeros(6*n_points, dtype= float)
+    row= np.zeros(6*n_points, dtype= int)
+    col= np.zeros(6*n_points, dtype= int)
+    
+    # inititalize the row andcolumn indices for the partials being stored
+    #row_x= 0
+    #row_y= 1
+    #row_z= 2
+    #col_s= 0
+    #col_t= 1
+    
+    #initialize the numpy arrays for the partials
+    dXds= grad_Qs[:,0]
+    dXdt= grad_Qt[:,0]
+    dYds= grad_Qs[:,1]
+    dYdt= grad_Qt[:,1]
+    dZds= grad_Qs[:,2]
+    dZdt= grad_Qt[:,2]
+    ind= np.arange(0, 6*n_points, 6)
+    
+    #store the partial derivatives in the data vector
+    data[ind]= dXds
+    data[ind+1]= dXdt
+    data[ind+2]= dYds
+    data[ind+3]= dYdt
+    data[ind+4]= dZds
+    data[ind+5]= dZdt
+    
+    #store the row indices of corresponding partials
+    row_x= np.arange(0, 3*n_points, 3)
+    row_y= np.arange(1, 3*n_points, 3)
+    row_z= np.arange(2, 3*n_points, 3)
+    
+    row[ind]= row_x
+    row[ind+1]= row_x
+    row[ind+2]= row_y
+    row[ind+3]= row_y
+    row[ind+4]= row_z
+    row[ind+5]= row_z
+    
+    #store the coloumn indices of corrsponding partials
+    col_s= np.arange(0, 2*n_points, 2)
+    col_t= np.arange(1, 2*n_points, 2)
+        
+    col[ind]= col_s
+    col[ind+1]= col_t
+    col[ind+2]= col_s
+    col[ind+3]= col_t
+    col[ind+4]= col_s
+    col[ind+5]= col_t
+    
+    #store the jacobian in the COO sparse format
+    jac_qp_test= coo_matrix((data,(row, col)), shape= (3*n_points, 2*n_points))
+    
+    return jac_qp_test, dXds, dXdt, dYds, dYdt, dZds, dZdt
 
 def jacobian_D(Q, D):
     """ Stores the jacobian of the distances between consecutive points on the
@@ -336,7 +404,73 @@ def jacobian_D(Q, D):
     
     jac_d= coo_matrix((data,(row, col)), shape= (n_points, 3*n_points))
     
-    return jac_d
+    return jac_d, dDdX1, dDdX2, dDdY1, dDdY2, dDdZ1, dDdZ2
+
+def test_jacobian_D(D, D_x1_h, D_x2_h, D_y1_h, D_y2_h, D_z1_h, D_z2_h, h):
+        
+    # calculate the partials
+    dDdX1= (D_x1_h - D)/h
+    dDdX2= (D_x2_h - D)/h
+    
+    dDdY1= (D_y1_h - D)/h
+    dDdY2= (D_y2_h - D)/h
+    
+    dDdZ1= (D_z1_h - D)/h
+    dDdZ2= (D_z2_h - D)/h
+    
+    # number of points on the slice
+    n_points= D.shape[0]
+    
+    #total sizeof the jacobian
+   # size= 3*(n_points**2)
+    # store dxds, dxdt, dyds, dydt, dzds, dzdt in that order
+    # for every 1 distance, there will be 6 non-zero partials
+    data= np.zeros(6*n_points, dtype= float)
+    row= np.zeros(6*n_points, dtype= int)
+    col= np.zeros(6*n_points, dtype= int)
+    
+        
+    #store the partial derivatives
+    #TODO without for loop
+    ind= np.arange(0, 6*n_points, 6)
+    
+    #store the partial derivatives in the data vector
+    data[ind]= dDdX1
+    data[ind+1]= dDdY1
+    data[ind+2]= dDdZ1
+    data[ind+3]= dDdX2
+    data[ind+4]= dDdY2
+    data[ind+5]= dDdZ2
+    
+    #store the row indices of corresponding partials
+    row_d= np.arange(0, n_points, 1)
+    row[ind]= row_d
+    row[ind+1]= row_d
+    row[ind+2]= row_d
+    row[ind+3]= row_d
+    row[ind+4]= row_d
+    row[ind+5]= row_d
+    
+    col_x= np.arange(0, 3*n_points, 3)
+    col_y= np.arange(1, 3*n_points, 3)
+    col_z= np.arange(2, 3*n_points, 3)
+    
+    col[ind]= col_x
+    col[ind+1]= col_y
+    col[ind+2]= col_z
+    col[ind+3]= col_x + 3
+    col[ind+4]= col_y + 3
+    col[ind+5]= col_z + 3
+    #overwriting the final three indices to close the loop
+    col[-1]= 2 #del(dn)/del(z1)
+    col[-2]= 1 #del(dn)/del(z2)
+    col[-3]= 0 #del(dn)/del(z3)
+    
+    jac_dq_test= coo_matrix((data,(row, col)), shape= (n_points, 3*n_points))
+    
+    return jac_dq_test, dDdX1, dDdX2, dDdY1, dDdY2, dDdZ1, dDdZ2
+
+def test_jacobian_DP():
 
 def jacobian_main(dZds, dZdt, jac_dp, n_points):
     """ Constructs the main jacobian matrix of size 2N x (2N+1)

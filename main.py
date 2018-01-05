@@ -75,14 +75,13 @@ Pk_in[ind_tin]= tin
 #----------------Step 2------------------------------------------------
 # first guess of the s-t space
 grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
-
 #------------test for Q generation---------------------------------------------
 #S= np.zeros((10, 1), dtype= float) #spanwise section
 #S.fill(1)
 #T= np.zeros((10, 1), dtype= float) #chordwise section
 #T[0:, 0]= np.arange(0, 10)
 #----------------------------------------------------------------------------
-for i in range(Ns_desired):
+for i in range(500,501):#(Ns_desired):
   #flag for exiting the while loop
   exit_flag= 1
   # store initial zc 
@@ -121,10 +120,10 @@ for i in range(Ns_desired):
 # calculate the analytic gradients of each stage
 
 # jacobian as a sparse matrix for Q-->(x,y,z) wrt P-->(s,t) of size 3Nx2N
-    jac_qp, dZds, dZdt= jacobian_Q(S, T, grid_map, val_map)
+    jac_qp, _, _, _, _, dZds, dZdt= jacobian_Q(S, T, grid_map, val_map)
 
 # jacobian as a sparse matrix for D-->(di) wrt Q-->(x,y,z) of size Nx3N
-    jac_dq= jacobian_D(Q, D)
+    jac_dq, _, _, _, _, _, _= jacobian_D(Q, D)
 
 # jacobian as a sparse matrix for D-->(di) wrt P-->(s,t) of size Nx2N
     jac_dp= jac_dq*jac_qp

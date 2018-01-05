@@ -26,12 +26,32 @@ def bilinear_surface(surface_orig, grid_s, grid_t, S, T):
 # interpolant grid location
    grid_map= np.empty((Ncs_desired), dtype= object)    
    val_map= np.empty((Ncs_desired), dtype= object)
-         
+   
+#------------------treatment for S and/or T exceeding the bound-space---------
+   Ns= S.shape[0]
+   S[S<0]= 0
+   S[S>=Ns]= Ns-1
+   
+   if np.min(T)< 0:
+       T_low= T[T<0]
+       quot= abs(T_low)/Ncs_desired
+       quot= quot.astype(int)
+       rem= abs(T_low) - quot*Ncs_desired
+       T[T<0]= rem
+       
+   if np.max(T)>= Ncs_desired:
+       T_high= T[T>=Ncs_desired]
+       quot= abs(T_high)/Ncs_desired
+       quot= quot.astype(int)
+       rem= abs(T_high) - quot*Ncs_desired
+       T[T>=Ncs_desired]= (Ncs_desired-1) - rem
+#----------------------------------------------------------------------------      
+   
    for i in range(Ncs_desired):
     #store the x-coordinate of the desired point
-      x= T[i]
+      x= S[i]
     #store the y-coordinate of the desired point
-      y= S[i]
+      y= T[i]
     #obtain the closest index of the x-coordinate in the original grid
       idx= (np.abs(x - grid_s)).argmin(axis=0)[0]
     # obtain the closest index of the y-coordinate in the desired grid
@@ -49,8 +69,8 @@ def bilinear_surface(surface_orig, grid_s, grid_t, S, T):
       indices_y[Py1]= [idx, idy]
         
       # obtain the neighbourhood
-      up_bound_x= np.max(T)
-      up_bound_y= np.max(S) 
+      up_bound_x= np.max(grid_s)
+      up_bound_y= np.max(grid_t) 
       
       # obtain the second y-coordinate
       if Py1 == up_bound_y or y< Py1:
@@ -61,7 +81,7 @@ def bilinear_surface(surface_orig, grid_s, grid_t, S, T):
                 
       else:
          Py2 = grid_t[idx, idy + 1]
-     
+         
          indices_y[Py2]= [idx, idy + 1]       
       # obtain the second x-coordinate
       if Px1 == up_bound_x or x< Px1:
@@ -70,7 +90,9 @@ def bilinear_surface(surface_orig, grid_s, grid_t, S, T):
           
          indices_x[Px2]= [idx - 1, idy]
       else:
-         Px2 = grid_s[idx + 1, idy] 
+         #print('(Px1=%i, Py1=%i), (Px2=%i, Py2=%i)'%(Px1, Py1, Px2, Py2)) 
+         Px2 = grid_s[idx + 1, idy]
+         
             
          indices_x[Px2]= [idx + 1, idy]
     # sort the neighbourhood in ascending order
@@ -126,8 +148,8 @@ def bilinear_surface(surface_orig, grid_s, grid_t, S, T):
         #Coefficient matrix for Z-values
        Bz= np.linalg.inv(A) * Z
         
-       x_desired= T[i]
-       y_desired= S[i]
+       x_desired= S[i]
+       y_desired= T[i]
         
         # X-value for the new surface
        Q[i, 0]= (float(Bx[0]) + float(Bx[1])*x_desired + 
