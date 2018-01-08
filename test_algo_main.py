@@ -15,9 +15,8 @@ import time
 import numpy as np
 #from mpl_toolkits.mplot3d import Axes3D
 #from matplotlib import pyplot as plt
-from parametric_space import bilinear_surface #user-defined method to perform bilinear
-                                              #grid interpolation
-import pickling #user-defined module to store and load python data as pickles
+from parametric_space import bilinear_surface
+import pickling 
 from vector_operations import calculate_distance
 from vector_operations import jacobian_Q
 from vector_operations import jacobian_D
@@ -39,14 +38,13 @@ optimization_file= '../../optimization.sqlite'
 # set the iteration to choose from
 iteration = 22
 # set the number of chordwise N_c and spanwise sections N_s for the surface
-N_c= 1000
-N_s= 1000
-#generate the lofted surface
-#surface = kb6_loftedblade(optimization_file, iteration, N_c, N_s)
-blade_length= 1 # in metres
-surface= pickling.load_obj('KB6_surf_1000by1000') 
-surface= surface*blade_length 
+N_c= 100
+N_s= 11
 
+blade_length= 10 # in metres
+#surface= pickling.load_obj('KB6_surf_1000by1000') 
+#surface= surface*blade_length 
+surface= cylinder3D(N_c, N_s, 1, blade_length)
 #initialize the residual vector constants
 dc_in= 0 # distance constant that is dtermined by Newton method
 
@@ -54,14 +52,14 @@ dc_in= 0 # distance constant that is dtermined by Newton method
 tc= 0
 
 # desired spanwise elements
-Ns_desired= 1000 ##do not change
-Nc_desired= 1000
+Ns_desired= 11 ##do not change
+Nc_desired= 100
 
 n_points= Nc_desired
 
-surface_new= np.zeros((Nc_desired, Ns_desired, 3), dtype= float)
+surface_new= np.zeros((Ns_desired, Nc_desired, 3), dtype= float)
 #set value of zc
-zc_vec= np.linspace(0, 1*blade_length, Ns_desired)
+zc_vec= np.linspace(0, 1*blade_length, num= Ns_desired, endpoint= True)
 
 #initialize the Pk vector with s and t points
 Pk_in= np.zeros(2*n_points+1, dtype=float)
@@ -82,7 +80,7 @@ grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
 #T= np.zeros((10, 1), dtype= float) #chordwise section
 #T[0:, 0]= np.arange(0, 10)
 #----------------------------------------------------------------------------
-for i in range(500,501):#(Ns_desired):
+for i in range(5,6):#(Ns_desired):
   #flag for exiting the while loop
   exit_flag= 1
   # store initial zc 
