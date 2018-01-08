@@ -22,7 +22,6 @@ from vector_operations import calculate_distance
 from vector_operations import jacobian_Q
 from vector_operations import jacobian_D
 from vector_operations import jacobian_main
-from surface3d import cylinder3D
 
 #format of surface_orig is [i, j, k] where i= Number of cross-sections,
 # j= Number of spanwise sections, k= (x, y, z)
@@ -44,9 +43,16 @@ N_s= 1000
 #generate the lofted surface
 #surface = kb6_loftedblade(optimization_file, iteration, N_c, N_s)
 blade_length= 1 # in metres
-surface= pickling.load_obj('KB6_surf_1000by1000') 
-surface= surface*blade_length 
+surface_tmp= pickling.load_obj('KB6_surf_1000by1000') 
+surface_tmp= surface_tmp*blade_length 
 
+# rearrange surface from (Nc, Ns, 3) to (Ns, Nc, 3)
+surface= np.zeros((N_s, N_c, 3), dtype= float)
+for i in range(N_s):
+    surface[i,:,0]= surface_tmp[:,i,0]
+    surface[i,:,1]= surface_tmp[:,i,1]
+    surface[i,:,2]= surface_tmp[:,i,2]
+    
 #initialize the residual vector constants
 dc_in= 0 # distance constant that is dtermined by Newton method
 
@@ -59,7 +65,7 @@ Nc_desired= 1000
 
 n_points= Nc_desired
 
-surface_new= np.zeros((Nc_desired, Ns_desired, 3), dtype= float)
+surface_new= np.zeros((Ns_desired, Nc_desired, 3), dtype= float)
 #set value of zc
 zc_vec= np.linspace(0, 1*blade_length, Ns_desired)
 
@@ -155,9 +161,9 @@ for i in range(500,501):#(Ns_desired):
         # set exit flag as False
         exit_flag= 0
         # store the last Q(x,y,z) points as the final section
-        surface_new[:, i, 0]= Q[:, 0]
-        surface_new[:, i, 1]= Q[:, 1]
-        surface_new[:, i, 2]= Q[:, 2]
+        surface_new[i, :, 0]= Q[:, 0]
+        surface_new[i, :, 1]= Q[:, 1]
+        surface_new[i, :, 2]= Q[:, 2]
         break
     
     #-----------------Step 7---------------------------------------------------

@@ -8,7 +8,7 @@ Created on Mon Jan  8 12:58:33 2018
 """
 import numpy as np
 
-def cylinder3D(Nc, Ns, radius, length):
+def cylinder3D(Ns, Nc, radius, length):
   """ Calculates length between consecutive points on a cross-sectional slice.
         
     Args:
@@ -33,14 +33,14 @@ def cylinder3D(Nc, Ns, radius, length):
   y= radius*np.sin(theta_vec)
   z= np.linspace(0, length, num= Ns, endpoint= True)
 
-  surface= np.zeros((Nc, Ns, 3), dtype= float)
+  surface= np.zeros((Ns, Nc, 3), dtype= float)
   z_cs= np.zeros(Nc, dtype= float)
 
   for i in range(Ns):
      z_cs[:]= z[i]
-     surface[:, i, 0]= x
-     surface[:, i, 1]= y
-     surface[:, i, 2]= z_cs
+     surface[i, :, 0]= x
+     surface[i, :, 1]= y
+     surface[i, :, 2]= z_cs
        
   # plot and check
   #2-D plot

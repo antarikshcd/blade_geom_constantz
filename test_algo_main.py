@@ -44,7 +44,7 @@ N_s= 11
 blade_length= 10 # in metres
 #surface= pickling.load_obj('KB6_surf_1000by1000') 
 #surface= surface*blade_length 
-surface= cylinder3D(N_c, N_s, 1, blade_length)
+surface= cylinder3D(N_s, N_c, 1, blade_length)
 #initialize the residual vector constants
 dc_in= 0 # distance constant that is dtermined by Newton method
 
@@ -153,9 +153,9 @@ for i in range(5,6):#(Ns_desired):
         # set exit flag as False
         exit_flag= 0
         # store the last Q(x,y,z) points as the final section
-        surface_new[:, i, 0]= Q[:, 0]
-        surface_new[:, i, 1]= Q[:, 1]
-        surface_new[:, i, 2]= Q[:, 2]
+        surface_new[i, :, 0]= Q[:, 0]
+        surface_new[i, :, 1]= Q[:, 1]
+        surface_new[i, :, 2]= Q[:, 2]
         break
     
     #-----------------Step 7---------------------------------------------------
