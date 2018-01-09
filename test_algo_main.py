@@ -12,6 +12,7 @@ Created on Thu Dec  7 16:58:33 2017
 
 """
 import time
+import copy
 import numpy as np
 #from mpl_toolkits.mplot3d import Axes3D
 #from matplotlib import pyplot as plt
@@ -38,7 +39,7 @@ optimization_file= '../../optimization.sqlite'
 # set the iteration to choose from
 iteration = 22
 # set the number of chordwise N_c and spanwise sections N_s for the surface
-N_c= 100
+N_c= 10
 N_s= 11
 
 blade_length= 10 # in metres
@@ -53,7 +54,7 @@ tc= 0
 
 # desired spanwise elements
 Ns_desired= 11 ##do not change
-Nc_desired= 100
+Nc_desired= 10
 
 n_points= Nc_desired
 
@@ -79,21 +80,41 @@ grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
 #S.fill(1)
 #T= np.zeros((10, 1), dtype= float) #chordwise section
 #T[0:, 0]= np.arange(0, 10)
+# span sections where the surface is to be found
+span_low= 5
+span_high= 6
+#
+alpha= 0.1 # relaxation factor for the newton method
+#------------------
 #----------------------------------------------------------------------------
-for i in range(5,6):#(Ns_desired):
+for i in range(span_low, span_high):#(Ns_desired):
+  
   #flag for exiting the while loop
   exit_flag= 1
   # store initial zc 
   zc= zc_vec[i]
+  
+  Pk_in[ind_sin]= sin[i]
+  
+  # perturbing the surface----------------
+  Pk_in[ind_sin]+= 0.
+  Pk_in[ind_tin]+= 0.0001
+  surface_perturb, _, _= bilinear_surface(surface, grid_s, grid_t, 
+                                      Pk_in[ind_sin], Pk_in[ind_tin])
+# guess for dc_in
+  D_in= calculate_distance(surface_perturb[:, 0], 
+                           surface_perturb[:, 1], 
+                           surface_perturb[:, 2], flag= True)
+  dc_in= np.sum(D_in)/n_points
+    
   #store initial dc
   dc= dc_in
   
-  Pk_in[ind_sin]= sin[i]
   #initial guess for dc
   Pk_in[-1]= dc
   #initial guess for each span-wise section
   Pk= Pk_in
-  
+    
   #counter
   count=0 
   while exit_flag:
@@ -144,12 +165,12 @@ for i in range(5,6):#(Ns_desired):
     R[n_points:2*n_points]= Q[:, 2] - zc
     #fill up the t1-tc function 
     R[-1]= T[0] - tc
-
-
+    # take max of residual
+    R_max= np.max(np.abs(R))
     #-------------------Step 6--------------------------------------------------
     # add a check to exit the newton method
     # ex: np.max(R)<1e-5 
-    if np.max(R)<1e-5:
+    if R_max<1e-5:
         # set exit flag as False
         exit_flag= 0
         # store the last Q(x,y,z) points as the final section
@@ -160,19 +181,33 @@ for i in range(5,6):#(Ns_desired):
     
     #-----------------Step 7---------------------------------------------------
     #inverse the main jacobain array
-    jac_main_inv= np.linalg.pinv(jac_main.toarray())
+    jac_main_array= jac_main.toarray()
+    jac_main_inv= np.linalg.pinv(jac_main_array)
     # store the k+1 values of the P vector
     # P = [s1, t1, s2, t2...si,ti...., dc] order: (2N+1) x 1
-    Pk1= Pk - np.dot(jac_main_inv, R) 
+    #delta= - np.dot(jac_main_inv, R)
+    delta= - np.linalg.solve(jac_main_array, R)
+    # update the state
+    Pk1= Pk + alpha*delta
     #update P
     Pk=Pk1
-    #increase count
-    count+=1  
+       
+    # print out the norm of residual, iteration and norm of delta
+    R_norm= np.linalg.norm(R)
+    delta_norm= np.linalg.norm(delta)
+    jac_main_cond= np.linalg.cond(jac_main_array)
     
-    
+    print('----------------------------------------------------')
+    print('\n Iteration= %i, dc= %3.5f, Main jac cond= %e'%(count, dc, jac_main_cond))
+    print('\n Residual : R_max= %3.5f, R_norm= %3.5f \n'%(R_max, R_norm))
+    print('\n Delta vector : delta_norm= %3.5f \n'%(delta_norm))
+    print('----------------------------------------------------')
+    time.sleep(0.3)
+     #increase count
+    count+=1 
 # check grid
-#fig = plt.figure()
-#ax = fig.add_subplot(111, projection='3d')
-#ax.plot_surface(Q[:,0], Q[:,1], Q[:,2])
-#ax.set_zlabel('blade radius')
-#plt.show()
+from matplotlib import pyplot as plt    
+fig= plt.figure('compare')
+plt.plot(surface_new[5, :, 0], surface_new[5, :, 1], 'xr', label='new')
+plt.plot(surface[5, :, 0], surface[5, :, 1], 'b', label='orig')
+plt.legend(loc='best')
