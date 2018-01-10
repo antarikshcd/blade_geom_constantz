@@ -8,6 +8,39 @@ Created on Tue Dec 12 15:42:49 2017
 import numpy as np
 from scipy.sparse import coo_matrix
 
+def build_residual(T, Q, D, zc, dc, tc, n_points):
+    """ Constructs the residual vector.
+        
+    Args:
+        D (float): A float data type 1D numpy array of the distances in 
+                  cartesian space.
+        Q (float): A float data type 2D numpy array of the 
+                  cartesian space.
+        T (float): A float data type 1D numpy array of the t-coordinates in 
+                   the parametric space.
+        zc (float): Constant z plane where the cross-section is being constructed.
+        dc (float): Constant distance between consecutive points on the cross-
+                    sectional slice, being calculated by the Newton iteration.
+        tc (int): The starting point of the slice in parametric space.            
+        n_points: Number of points on the cross-sectional slice.
+        
+    Returns: 
+        R:     Numpy vector of the residual terms.
+       
+     """        
+    
+    R= np.zeros((2*n_points + 1), dtype=float)
+ 
+    # fill up the distance function di-dc
+    #update dc
+    R[:n_points]= D - dc
+    #fill up the z coordinate function z-zc
+    R[n_points:2*n_points]= Q[:, 2] - zc
+    #fill up the t1-tc function 
+    R[2*n_points]= T[0] - tc
+    
+    return R
+    
 def calculate_distance(x, y, z, flag= False):
     """ Calculates length between consecutive points on a cross-sectional slice.
         
@@ -608,15 +641,24 @@ def jacobian_main(dZds, dZdt, jac_dp, n_points):
     row= np.append(row, row_dc)
     col= np.append(col, col_dc)
     
-    # make the del(t-tc)/del(P). only add non zero entities.
-    data_dtdp= 1.0
-    row_dtdp= 2*n_points
-    col_dtdp= 1
+    # make the del(t1-tc)/del(P). only add non zero entities.
+    data_dt1dp= 1.0
+    row_dt1dp= 2*n_points
+    col_dt1dp= 1
     #append it to the main jacobian row, column and data
-    data= np.append(data, data_dtdp)
-    row= np.append(row, row_dtdp)
-    col= np.append(col, col_dtdp)
+    data= np.append(data, data_dt1dp)
+    row= np.append(row, row_dt1dp)
+    col= np.append(col, col_dt1dp)
     
-    jac_main= coo_matrix((data,(row, col)), shape= (2*n_points+1, 2*n_points+1))
+    # make the del(tn-tc)/del(P). only add non zero entities.
+   # data_dtNdp= 1.0
+   # row_dtNdp= 2*n_points + 1
+   # col_dtNdp= 2*n_points
+    #append it to the main jacobian row, column and data
+   # data= np.append(data, data_dtNdp)
+   # row= np.append(row, row_dtNdp)
+   # col= np.append(col, col_dtNdp)
+    
+    jac_main= coo_matrix((data,(row, col)), shape= (2*n_points + 1, 2*n_points+1))
     
     return jac_main

@@ -26,7 +26,7 @@ def cylinder3D(Ns, Nc, radius, length):
 #Ns=11
 #radius= 1
 #length= 10
-  theta_vec= np.linspace(0, 2*np.pi, num= Nc, endpoint= True)
+  theta_vec= np.linspace(0, 2*np.pi, num= Nc, endpoint= False)
 
   #obtian the x,y,z vectors
   x= radius*np.cos(theta_vec)

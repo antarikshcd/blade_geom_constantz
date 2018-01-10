@@ -17,7 +17,9 @@ import numpy as np
 #from mpl_toolkits.mplot3d import Axes3D
 #from matplotlib import pyplot as plt
 from parametric_space import bilinear_surface
+from parametric_space import boundary_correction
 import pickling 
+from vector_operations import build_residual
 from vector_operations import calculate_distance
 from vector_operations import jacobian_Q
 from vector_operations import jacobian_D
@@ -39,24 +41,26 @@ optimization_file= '../../optimization.sqlite'
 # set the iteration to choose from
 iteration = 22
 # set the number of chordwise N_c and spanwise sections N_s for the surface
-N_c= 15
+N_c= 10
 N_s= 11
 
 blade_length= 10 # in metres
 #surface= pickling.load_obj('KB6_surf_1000by1000') 
 #surface= surface*blade_length 
 surface= cylinder3D(N_s, N_c, 1, blade_length)
+
+
+# desired spanwise elements
+Ns_desired= 11 ##do not change
+Nc_desired= 10
+
+n_points= Nc_desired
+
 #initialize the residual vector constants
 dc_in= 0 # distance constant that is dtermined by Newton method
 
 #initialize the constant tc
-tc= 0
-
-# desired spanwise elements
-Ns_desired= 11 ##do not change
-Nc_desired= 15
-
-n_points= Nc_desired
+tc= 0 
 
 surface_new= np.zeros((Ns_desired, Nc_desired, 3), dtype= float)
 #set value of zc
@@ -81,11 +85,11 @@ grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
 #T= np.zeros((10, 1), dtype= float) #chordwise section
 #T[0:, 0]= np.arange(0, 10)
 # span sections where the surface is to be found
-span_low= 5
-span_high= 6
+span_low= 0
+span_high= 1
 #
-alpha= 0.5 # relaxation factor for the newton method
-sor_flag= 1 #flag to trigger NEWTON SOR method
+alpha= 1 # relaxation factor for the newton method
+sor_flag= 0 #flag to trigger NEWTON SOR method
 omega= 0.1 # relaxation factor for the SOR method
 #------------------
 #----------------------------------------------------------------------------
@@ -99,8 +103,8 @@ for i in range(span_low, span_high):#(Ns_desired):
   Pk_in[ind_sin]= sin[i]
   
   # perturbing the surface----------------
-  Pk_in[ind_sin]+= 0.1
-  Pk_in[ind_tin]+= 0.1
+  Pk_in[ind_sin] += 0.
+  Pk_in[ind_tin] += 0.
   surface_perturb, _, _= bilinear_surface(surface, grid_s, grid_t, 
                                       Pk_in[ind_sin], Pk_in[ind_tin])
 # guess for dc_in
@@ -126,6 +130,8 @@ for i in range(span_low, span_high):#(Ns_desired):
     S= Pk[ind_sin] 
     T= Pk[ind_tin]
     
+    S, T= boundary_correction(S, T, n_points)
+    
     Q, grid_map, val_map= bilinear_surface(surface, grid_s, grid_t, S, T)
     #----------------------------------------------------------------------------
     #------------------------Step 3---------------------------------------------
@@ -147,8 +153,6 @@ for i in range(span_low, span_high):#(Ns_desired):
 
     # construct the final jacobian matrix of order (2N+1)x(2N+1) with d-dc, z-zc, t-tc
     # partials
-    n_points= S.shape[0] # number of slice points
-
     jac_main= jacobian_main(dZds, dZdt, jac_dp, n_points)
 
     #------------------Step 5------------------------------------------------
@@ -157,22 +161,18 @@ for i in range(span_low, span_high):#(Ns_desired):
     #construct the residual vector
     #NOTE: for the np.arrays use np.dot for matrix multiplication where column vectors
     # and row vectors are automatically treated.
-    R= np.zeros((2*n_points + 1), dtype=float)
- 
-    # fill up the distance function di-dc
+     
     #update dc
     dc= Pk[-1]
-    R[:n_points]= D - dc
-    #fill up the z coordinate function z-zc
-    R[n_points:2*n_points]= Q[:, 2] - zc
-    #fill up the t1-tc function 
-    R[-1]= T[0] - tc
+    
+    R= build_residual(T, Q, D, zc, dc, tc, n_points)
+    
     # take max of residual
     R_max= np.max(np.abs(R))
     #-------------------Step 6--------------------------------------------------
     # add a check to exit the newton method
     # ex: np.max(R)<1e-5 
-    if R_max<1e-5:
+    if R_max < 1e-5:
         # set exit flag as False
         exit_flag= 0
         # store the last Q(x,y,z) points as the final section
@@ -209,11 +209,13 @@ for i in range(span_low, span_high):#(Ns_desired):
     print('\n Delta vector : delta_norm= %3.5f \n'%(delta_norm))
     print('----------------------------------------------------')
     time.sleep(0.3)
-     #increase count
+    
+    #increase count
     count+=1 
-# check grid
+    
+# check
 from matplotlib import pyplot as plt    
 fig= plt.figure('compare')
-plt.plot(surface_new[5, :, 0], surface_new[5, :, 1], 'xr', label='new')
-plt.plot(surface[5, :, 0], surface[5, :, 1], 'b', label='orig')
+plt.plot(surface_new[span_low, :, 0], surface_new[span_low, :, 1], 'xr', label='new')
+plt.plot(surface[span_low, :, 0], surface[span_low, :, 1], 'b', label='orig')
 plt.legend(loc='best')

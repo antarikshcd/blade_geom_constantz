@@ -7,6 +7,28 @@ Created on Mon Dec 11 12:56:39 2017
 """
 import numpy as np
 
+def boundary_correction(S, T, n_points):
+    #------------------treatment for S and/or T exceeding the bound-space---------
+   S[S < 0] = 0
+   S[S >= n_points] = n_points-1
+   
+   if np.min(T) < 0:
+       T_low = T[T < 0]
+       quot = abs(T_low)/n_points
+       quot = quot.astype(int)
+       rem = abs(T_low) - quot*n_points
+       T[T < 0] = rem
+       
+   if np.max(T)>= n_points:
+       T_high= T[T >= n_points]
+       quot= abs(T_high)/n_points
+       quot= quot.astype(int)
+       rem= abs(T_high) - quot*n_points
+       T[T >= n_points]= rem
+    
+   return S, T 
+#----------------------------------------------------------------------------   
+       
 def bilinear_surface(surface_orig, grid_s, grid_t, S, T):
    
    #Ncs= grid_t.shape[0] # number of cross-sections
@@ -27,25 +49,7 @@ def bilinear_surface(surface_orig, grid_s, grid_t, S, T):
    grid_map= np.empty((Ncs_desired), dtype= object)    
    val_map= np.empty((Ncs_desired), dtype= object)
    
-#------------------treatment for S and/or T exceeding the bound-space---------
-   Ns= S.shape[0]
-   S[S<0]= 0
-   S[S>=Ns]= Ns-1
    
-   if np.min(T)< 0:
-       T_low= T[T<0]
-       quot= abs(T_low)/Ncs_desired
-       quot= quot.astype(int)
-       rem= abs(T_low) - quot*Ncs_desired
-       T[T<0]= rem
-       
-   if np.max(T)>= Ncs_desired:
-       T_high= T[T>=Ncs_desired]
-       quot= abs(T_high)/Ncs_desired
-       quot= quot.astype(int)
-       rem= abs(T_high) - quot*Ncs_desired
-       T[T>=Ncs_desired]= (Ncs_desired-1) - rem
-#----------------------------------------------------------------------------      
    
    for i in range(Ncs_desired):
     #store the x-coordinate of the desired point
