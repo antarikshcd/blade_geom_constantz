@@ -39,7 +39,7 @@ optimization_file= '../../optimization.sqlite'
 # set the iteration to choose from
 iteration = 22
 # set the number of chordwise N_c and spanwise sections N_s for the surface
-N_c= 10
+N_c= 15
 N_s= 11
 
 blade_length= 10 # in metres
@@ -54,7 +54,7 @@ tc= 0
 
 # desired spanwise elements
 Ns_desired= 11 ##do not change
-Nc_desired= 10
+Nc_desired= 15
 
 n_points= Nc_desired
 
@@ -84,7 +84,9 @@ grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
 span_low= 5
 span_high= 6
 #
-alpha= 0.1 # relaxation factor for the newton method
+alpha= 0.5 # relaxation factor for the newton method
+sor_flag= 1 #flag to trigger NEWTON SOR method
+omega= 0.1 # relaxation factor for the SOR method
 #------------------
 #----------------------------------------------------------------------------
 for i in range(span_low, span_high):#(Ns_desired):
@@ -97,8 +99,8 @@ for i in range(span_low, span_high):#(Ns_desired):
   Pk_in[ind_sin]= sin[i]
   
   # perturbing the surface----------------
-  Pk_in[ind_sin]+= 0.
-  Pk_in[ind_tin]+= 0.0001
+  Pk_in[ind_sin]+= 0.1
+  Pk_in[ind_tin]+= 0.1
   surface_perturb, _, _= bilinear_surface(surface, grid_s, grid_t, 
                                       Pk_in[ind_sin], Pk_in[ind_tin])
 # guess for dc_in
@@ -188,7 +190,11 @@ for i in range(span_low, span_high):#(Ns_desired):
     #delta= - np.dot(jac_main_inv, R)
     delta= - np.linalg.solve(jac_main_array, R)
     # update the state
-    Pk1= Pk + alpha*delta
+    if not sor_flag:
+        Pk1= Pk + alpha*delta
+    else:
+        Pk1_tmp= Pk + delta
+        Pk1= (omega)*Pk1_tmp + (1-omega)*Pk        
     #update P
     Pk=Pk1
        
