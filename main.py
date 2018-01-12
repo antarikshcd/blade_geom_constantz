@@ -15,9 +15,11 @@ import time
 import numpy as np
 #from mpl_toolkits.mplot3d import Axes3D
 #from matplotlib import pyplot as plt
-from parametric_space import bilinear_surface #user-defined method to perform bilinear
-                                              #grid interpolation
-import pickling #user-defined module to store and load python data as pickles
+from parametric_space import bilinear_surface 
+from parametric_space import boundary_correction
+from parametric_space import search_plane
+import pickling 
+from vector_operations import build_residual
 from vector_operations import calculate_distance
 from vector_operations import jacobian_Q
 from vector_operations import jacobian_D
@@ -38,20 +40,23 @@ optimization_file= '../../optimization.sqlite'
 # set the iteration to choose from
 iteration = 22
 # set the number of chordwise N_c and spanwise sections N_s for the surface
-N_c= 1000
-N_s= 1000
+N_c= 150
+N_s= 100
 #generate the lofted surface
 #surface = kb6_loftedblade(optimization_file, iteration, N_c, N_s)
 blade_length= 1 # in metres
-surface_tmp= pickling.load_obj('KB6_surf_1000by1000') 
+#surface_tmp= pickling.load_obj('KB6_surf_1000by1000') 
+surface_tmp= pickling.load_obj('KB6_surf_noshearsweep')
+#surface_tmp= pickling.load_obj('KB1_surface_S100_C100')
+
 surface_tmp= surface_tmp*blade_length 
 
 # rearrange surface from (Nc, Ns, 3) to (Ns, Nc, 3)
-surface= np.zeros((N_s, N_c, 3), dtype= float)
+surface_orig= np.zeros((N_s, N_c, 3), dtype= float)
 for i in range(N_s):
-    surface[i,:,0]= surface_tmp[:,i,0]
-    surface[i,:,1]= surface_tmp[:,i,1]
-    surface[i,:,2]= surface_tmp[:,i,2]
+    surface_orig[i,:,0]= surface_tmp[:,i,0]
+    surface_orig[i,:,1]= surface_tmp[:,i,1]
+    surface_orig[i,:,2]= surface_tmp[:,i,2]
     
 #initialize the residual vector constants
 dc_in= 0 # distance constant that is dtermined by Newton method
@@ -60,15 +65,15 @@ dc_in= 0 # distance constant that is dtermined by Newton method
 tc= 0
 
 # desired spanwise elements
-Ns_desired= 1000 ##do not change
-Nc_desired= 1000
+Ns_desired= N_s ##do not change
+Nc_desired= N_c
 
 n_points= Nc_desired
 
 surface_new= np.zeros((Ns_desired, Nc_desired, 3), dtype= float)
 #set value of zc
 zc_vec= np.linspace(0, 1*blade_length, Ns_desired)
-
+#zc_vec= surface[:, 0, 2]
 #initialize the Pk vector with s and t points
 Pk_in= np.zeros(2*n_points+1, dtype=float)
 
@@ -82,28 +87,46 @@ Pk_in[ind_tin]= tin
 #----------------Step 2------------------------------------------------
 # first guess of the s-t space
 grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
-#------------test for Q generation---------------------------------------------
-#S= np.zeros((10, 1), dtype= float) #spanwise section
-#S.fill(1)
-#T= np.zeros((10, 1), dtype= float) #chordwise section
-#T[0:, 0]= np.arange(0, 10)
+
+alpha= 1 # relaxation factor for the newton method
+sor_flag= 0 #flag to trigger NEWTON SOR method
+omega= 0.1 # relaxation factor for the SOR method
+
+# testing for specific spans
+span_low = 0
+span_high = 1
+
+# generate the intial surface with points closely arranged to z-zc=0 planes
+surface_in = search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec)
 #----------------------------------------------------------------------------
-for i in range(500,501):#(Ns_desired):
+for i in range(span_low, span_high):#(Ns_desired):
   #flag for exiting the while loop
   exit_flag= 1
   # store initial zc 
   zc= zc_vec[i]
+  # store the current span value
+  Pk_in[ind_sin]= sin[i]
+  
+  # initial guess for dc
+  surface, _, _= bilinear_surface(surface_in, grid_s, grid_t, 
+                                      Pk_in[ind_sin], Pk_in[ind_tin])
+# guess for dc_in
+  D_in= calculate_distance(surface[:, 0], 
+                           surface[:, 1], 
+                           surface[:, 2], flag= True)
+  dc_in= np.sum(D_in)/n_points
+  
+  
   #store initial dc
   dc= dc_in
-  
-  Pk_in[ind_sin]= sin[i]
   #initial guess for dc
   Pk_in[-1]= dc
   #initial guess for each span-wise section
   Pk= Pk_in
   
-  #counter
+  # initialize while loop counter
   count=0 
+  
   while exit_flag:
   #-------------------------------------------------------------------
     # obtain the X,Y,Z points for the S and T vectors 
@@ -111,7 +134,9 @@ for i in range(500,501):#(Ns_desired):
     S= Pk[ind_sin] 
     T= Pk[ind_tin]
     
-    Q, grid_map, val_map= bilinear_surface(surface, grid_s, grid_t, S, T)
+    S, T= boundary_correction(S, T, n_points)
+    
+    Q, grid_map, val_map= bilinear_surface(surface_in, grid_s, grid_t, S, T)
     #----------------------------------------------------------------------------
     #------------------------Step 3---------------------------------------------
     #calculate distance between consecutive x,y,z in the slice also add the final 
@@ -132,55 +157,64 @@ for i in range(500,501):#(Ns_desired):
 
     # construct the final jacobian matrix of order (2N+1)x(2N+1) with d-dc, z-zc, t-tc
     # partials
-    n_points= S.shape[0] # number of slice points
-
     jac_main= jacobian_main(dZds, dZdt, jac_dp, n_points)
 
     #------------------Step 5------------------------------------------------
     #Newton Rhapson solver
-
-    #construct the residual vector
-    #NOTE: for the np.arrays use np.dot for matrix multiplication where column vectors
-    # and row vectors are automatically treated.
-    R= np.zeros((2*n_points + 1), dtype=float)
- 
+   
     # fill up the distance function di-dc
     #update dc
     dc= Pk[-1]
-    R[:n_points]= D - dc
-    #fill up the z coordinate function z-zc
-    R[n_points:2*n_points]= Q[:, 2] - zc
-    #fill up the t1-tc function 
-    R[-1]= T[0] - tc
-
-
+    # construct the residual vector
+    R= build_residual(T, Q, D, zc, dc, tc, n_points)
+    
+    # take max of residual
+    R_max= np.max(np.abs(R))
     #-------------------Step 6--------------------------------------------------
     # add a check to exit the newton method
     # ex: np.max(R)<1e-5 
-    if np.max(R)<1e-5:
+    if np.max(R) < 1e-4:
         # set exit flag as False
         exit_flag= 0
         # store the last Q(x,y,z) points as the final section
-        surface_new[i, :, 0]= Q[:, 0]
-        surface_new[i, :, 1]= Q[:, 1]
-        surface_new[i, :, 2]= Q[:, 2]
+        surface_new[i, :, 0] = Q[:, 0]
+        surface_new[i, :, 1] = Q[:, 1]
+        surface_new[i, :, 2] = Q[:, 2]
         break
     
     #-----------------Step 7---------------------------------------------------
-    #inverse the main jacobain array
-    jac_main_inv= np.linalg.pinv(jac_main.toarray())
-    # store the k+1 values of the P vector
-    # P = [s1, t1, s2, t2...si,ti...., dc] order: (2N+1) x 1
-    Pk1= Pk - np.dot(jac_main_inv, R) 
+    jac_main_array= jac_main.toarray()
+    jac_main_inv= np.linalg.pinv(jac_main_array)
+    
+    delta= - np.linalg.solve(jac_main_array, R)
+    # update the state
+    if not sor_flag:
+        Pk1= Pk + alpha*delta
+    else:
+        Pk1_tmp= Pk + delta
+        Pk1= (omega)*Pk1_tmp + (1-omega)*Pk        
     #update P
     Pk=Pk1
+       
+    # print out the norm of residual, iteration and norm of delta
+    R_norm= np.linalg.norm(R)
+    delta_norm= np.linalg.norm(delta)
+    jac_main_cond= np.linalg.cond(jac_main_array)
+    
+    print('----------------------------------------------------')
+    print('\n Iteration= %i, dc= %3.5f, Main jac cond= %e'%(count, dc, jac_main_cond))
+    print('\n Residual : R_max= %3.5f, R_norm= %3.5f \n'%(R_max, R_norm))
+    print('\n Delta vector : delta_norm= %3.5f \n'%(delta_norm))
+    print('----------------------------------------------------')
+    time.sleep(0.3)
+    
     #increase count
-    count+=1  
+    count+=1 
     
     
-# check grid
-#fig = plt.figure()
-#ax = fig.add_subplot(111, projection='3d')
-#ax.plot_surface(Q[:,0], Q[:,1], Q[:,2])
-#ax.set_zlabel('blade radius')
-#plt.show()
+# check
+from matplotlib import pyplot as plt    
+fig= plt.figure('compare')
+plt.plot(surface_new[span_low, :, 0], surface_new[span_low, :, 1], 'xr', label='new')
+plt.plot(surface_in[span_low, :, 0], surface_in[span_low, :, 1], 'b', label='orig')
+plt.legend(loc='best')

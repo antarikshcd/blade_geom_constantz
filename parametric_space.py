@@ -7,8 +7,40 @@ Created on Mon Dec 11 12:56:39 2017
 """
 import numpy as np
 
+def search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec):
+    #Initialize the initial guess of the surface
+    surface_in= np.zeros((N_s, N_c, 3), dtype= float)
+
+# -------------search algorithm---------------------------------------------
+
+    # input the parametric space s-ordinate that is being currently scanned
+    # Parametrise the original surface
+    #surface_tmp, grid_map_tmp, val_map_tmp= bilinear_surface(surface_perturb, grid_s, 
+    #                                                         grid_t, S, T)
+    # For the s-ordinate n question repopulate by searching for a t- coordiante in over the whole s
+
+    for i in sin:
+        for j in tin:
+            # vector that gives the minimum z-distance to the requested z plane
+            delz= np.abs(zc_vec[i] - surface_orig[:, j, 2])
+            # for equidistant values take the value which is lower than current z-coordinate
+            # this is automatically taken care of by the np.argmin() method    
+            # Find the corresponding S-index
+            s_ind= np.argmin(delz)
+            #Use the (s_ind,t) value to obtain the (x,y,z) coordinate 
+            x= surface_orig[s_ind, j, 0]
+            y= surface_orig[s_ind, j, 1]
+            z= surface_orig[s_ind, j, 2]
+            # and assign it to the new Surface matrix
+            surface_in[i, j, 0]= x 
+            surface_in[i, j, 1]= y
+            surface_in[i, j, 2]= z
+    
+    return surface_in 
+
 def boundary_correction(S, T, n_points):
-    #------------------treatment for S and/or T exceeding the bound-space---------
+   #------------------treatment for S and/or T exceeding the bound-space---------
+   # TODO: Solution for the spanwise  
    S[S < 0] = 0
    S[S >= n_points] = n_points-1
    

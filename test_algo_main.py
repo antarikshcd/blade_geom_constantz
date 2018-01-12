@@ -41,7 +41,7 @@ optimization_file= '../../optimization.sqlite'
 # set the iteration to choose from
 iteration = 22
 # set the number of chordwise N_c and spanwise sections N_s for the surface
-N_c= 10
+N_c= 500
 N_s= 11
 
 blade_length= 10 # in metres
@@ -52,7 +52,7 @@ surface= cylinder3D(N_s, N_c, 1, blade_length)
 
 # desired spanwise elements
 Ns_desired= 11 ##do not change
-Nc_desired= 10
+Nc_desired= 500
 
 n_points= Nc_desired
 
@@ -103,8 +103,8 @@ for i in range(span_low, span_high):#(Ns_desired):
   Pk_in[ind_sin]= sin[i]
   
   # perturbing the surface----------------
-  Pk_in[ind_sin] += 0.
-  Pk_in[ind_tin] += 0.
+  Pk_in[ind_sin] += 100.
+  Pk_in[ind_tin] +=100.
   surface_perturb, _, _= bilinear_surface(surface, grid_s, grid_t, 
                                       Pk_in[ind_sin], Pk_in[ind_tin])
 # guess for dc_in
