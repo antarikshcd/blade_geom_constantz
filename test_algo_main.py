@@ -18,6 +18,7 @@ import numpy as np
 #from matplotlib import pyplot as plt
 from parametric_space import bilinear_surface
 from parametric_space import boundary_correction
+from parametric_space import search_plane
 import pickling 
 from vector_operations import build_residual
 from vector_operations import calculate_distance
@@ -41,18 +42,18 @@ optimization_file= '../../optimization.sqlite'
 # set the iteration to choose from
 iteration = 22
 # set the number of chordwise N_c and spanwise sections N_s for the surface
-N_c= 500
+N_c= 100
 N_s= 11
 
 blade_length= 10 # in metres
 #surface= pickling.load_obj('KB6_surf_1000by1000') 
 #surface= surface*blade_length 
-surface= cylinder3D(N_s, N_c, 1, blade_length)
+surface_orig= cylinder3D(N_s, N_c, 1, blade_length)
 
 
 # desired spanwise elements
 Ns_desired= 11 ##do not change
-Nc_desired= 500
+Nc_desired= 100
 
 n_points= Nc_desired
 
@@ -91,6 +92,11 @@ span_high= 1
 alpha= 1 # relaxation factor for the newton method
 sor_flag= 0 #flag to trigger NEWTON SOR method
 omega= 0.1 # relaxation factor for the SOR method
+ls_flag= 1 # flag for line search
+
+# generate the intial surface with points closely arranged to z-zc=0 planes
+surface_in, param_map_in = search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec)
+
 #------------------
 #----------------------------------------------------------------------------
 for i in range(span_low, span_high):#(Ns_desired):
@@ -100,12 +106,13 @@ for i in range(span_low, span_high):#(Ns_desired):
   # store initial zc 
   zc= zc_vec[i]
   
-  Pk_in[ind_sin]= sin[i]
+  # store the current span value
+  Pk_in[ind_sin]= param_map_in[span_low, :, 0]
   
   # perturbing the surface----------------
   Pk_in[ind_sin] += 100.
   Pk_in[ind_tin] +=100.
-  surface_perturb, _, _= bilinear_surface(surface, grid_s, grid_t, 
+  surface_perturb, _, _= bilinear_surface(surface_in, grid_s, grid_t, 
                                       Pk_in[ind_sin], Pk_in[ind_tin])
 # guess for dc_in
   D_in= calculate_distance(surface_perturb[:, 0], 
@@ -132,7 +139,7 @@ for i in range(span_low, span_high):#(Ns_desired):
     
     S, T= boundary_correction(S, T, n_points)
     
-    Q, grid_map, val_map= bilinear_surface(surface, grid_s, grid_t, S, T)
+    Q, grid_map, val_map= bilinear_surface(surface_orig, grid_s, grid_t, S, T)
     #----------------------------------------------------------------------------
     #------------------------Step 3---------------------------------------------
     #calculate distance between consecutive x,y,z in the slice also add the final 
@@ -195,6 +202,43 @@ for i in range(span_low, span_high):#(Ns_desired):
     else:
         Pk1_tmp= Pk + delta
         Pk1= (omega)*Pk1_tmp + (1-omega)*Pk        
+    
+    # ------Block to plot line-search----------------------------
+    if ls_flag:
+        # store R0
+        R0_norm= np.linalg.norm(R)
+        # create the relaxation factor as a GP
+        alpha= np.geomspace(1e-6, 1, num=100, endpoint= True)
+        #initialize numpy array
+        num= alpha.shape[0]
+        R1_norm= np.zeros(num, dtype= float)
+        # for loop to get different R1s
+        for k in range(num):
+            
+            Pk1= Pk + alpha[k]*delta
+            # udate S and T
+            S= Pk1[ind_sin] 
+            T= Pk1[ind_tin]
+    
+            Q, _, _= bilinear_surface(surface_orig, grid_s, grid_t, S, T)
+    
+            D= calculate_distance(Q[:, 0], Q[:, 1], Q[:, 2], flag= True)
+    
+            #update dc
+            dc= Pk1[-1]
+            # construct the residual vector
+            R1= build_residual(T, Q, D, zc, dc, tc, n_points)         
+            # store  
+            R1_norm[k]= np.linalg.norm(R1)
+        
+        # plot
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.semilogx(alpha, R1_norm/R0_norm, '-')
+        plt.show()
+        #exit the while loop
+        exit_flag= 0
+        break
     #update P
     Pk=Pk1
        
@@ -217,5 +261,5 @@ for i in range(span_low, span_high):#(Ns_desired):
 from matplotlib import pyplot as plt    
 fig= plt.figure('compare')
 plt.plot(surface_new[span_low, :, 0], surface_new[span_low, :, 1], 'xr', label='new')
-plt.plot(surface[span_low, :, 0], surface[span_low, :, 1], 'b', label='orig')
+plt.plot(surface_orig[span_low, :, 0], surface_orig[span_low, :, 1], 'b', label='orig')
 plt.legend(loc='best')

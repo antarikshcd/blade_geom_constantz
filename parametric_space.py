@@ -10,15 +10,7 @@ import numpy as np
 def search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec):
     #Initialize the initial guess of the surface
     surface_in= np.zeros((N_s, N_c, 3), dtype= float)
-
-# -------------search algorithm---------------------------------------------
-
-    # input the parametric space s-ordinate that is being currently scanned
-    # Parametrise the original surface
-    #surface_tmp, grid_map_tmp, val_map_tmp= bilinear_surface(surface_perturb, grid_s, 
-    #                                                         grid_t, S, T)
-    # For the s-ordinate n question repopulate by searching for a t- coordiante in over the whole s
-
+    param_map_in= np.zeros((N_s, N_c, 2), dtype= int) 
     for i in sin:
         for j in tin:
             # vector that gives the minimum z-distance to the requested z plane
@@ -35,8 +27,11 @@ def search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec):
             surface_in[i, j, 0]= x 
             surface_in[i, j, 1]= y
             surface_in[i, j, 2]= z
-    
-    return surface_in 
+            # store the S,T info from the original surface
+            param_map_in[i, j, 0]= s_ind
+            param_map_in[i, j, 1]= j
+            
+    return surface_in, param_map_in 
 
 def boundary_correction(S, T, n_points):
    #------------------treatment for S and/or T exceeding the bound-space---------

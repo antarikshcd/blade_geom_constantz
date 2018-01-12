@@ -39,15 +39,19 @@ from vector_operations import jacobian_main
 optimization_file= '../../optimization.sqlite'
 # set the iteration to choose from
 iteration = 22
-# set the number of chordwise N_c and spanwise sections N_s for the surface
-N_c= 150
-N_s= 100
 #generate the lofted surface
 #surface = kb6_loftedblade(optimization_file, iteration, N_c, N_s)
-blade_length= 1 # in metres
+blade_length= 10.55 # in metres
 #surface_tmp= pickling.load_obj('KB6_surf_1000by1000') 
-surface_tmp= pickling.load_obj('KB6_surf_noshearsweep')
-#surface_tmp= pickling.load_obj('KB1_surface_S100_C100')
+#surface_tmp= pickling.load_obj('KB6_surf_noshearsweep')
+#surface_tmp= pickling.load_obj('KB6_surface_S500_C10')
+surface_tmp= pickling.load_obj('KB1_surface_S100_C100')
+#surface_tmp= pickling.load_obj('KB1_surface_S500_C10')
+
+# set the number of chordwise N_c and spanwise sections N_s for the surface
+N_c= surface_tmp.shape[0]
+N_s= surface_tmp.shape[1]
+
 
 surface_tmp= surface_tmp*blade_length 
 
@@ -73,7 +77,7 @@ n_points= Nc_desired
 surface_new= np.zeros((Ns_desired, Nc_desired, 3), dtype= float)
 #set value of zc
 zc_vec= np.linspace(0, 1*blade_length, Ns_desired)
-#zc_vec= surface[:, 0, 2]
+#zc_vec= surface_orig[:, 0, 2]
 #initialize the Pk vector with s and t points
 Pk_in= np.zeros(2*n_points+1, dtype=float)
 
@@ -88,16 +92,17 @@ Pk_in[ind_tin]= tin
 # first guess of the s-t space
 grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
 
-alpha= 1 # relaxation factor for the newton method
+alpha= 0.1 # relaxation factor for the newton method
 sor_flag= 0 #flag to trigger NEWTON SOR method
 omega= 0.1 # relaxation factor for the SOR method
+ls_flag= 1 # flag for the line search plot
 
 # testing for specific spans
 span_low = 0
 span_high = 1
 
 # generate the intial surface with points closely arranged to z-zc=0 planes
-surface_in = search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec)
+surface_in, param_map_in = search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec)
 #----------------------------------------------------------------------------
 for i in range(span_low, span_high):#(Ns_desired):
   #flag for exiting the while loop
@@ -105,15 +110,12 @@ for i in range(span_low, span_high):#(Ns_desired):
   # store initial zc 
   zc= zc_vec[i]
   # store the current span value
-  Pk_in[ind_sin]= sin[i]
-  
-  # initial guess for dc
-  surface, _, _= bilinear_surface(surface_in, grid_s, grid_t, 
-                                      Pk_in[ind_sin], Pk_in[ind_tin])
-# guess for dc_in
-  D_in= calculate_distance(surface[:, 0], 
-                           surface[:, 1], 
-                           surface[:, 2], flag= True)
+  Pk_in[ind_sin]= param_map_in[span_low, :, 0]
+    
+  # guess for dc_in
+  D_in= calculate_distance(surface_in[span_low, :, 0], 
+                           surface_in[span_low, :, 1], 
+                           surface_in[span_low, :, 2], flag= True)
   dc_in= np.sum(D_in)/n_points
   
   
@@ -136,7 +138,7 @@ for i in range(span_low, span_high):#(Ns_desired):
     
     S, T= boundary_correction(S, T, n_points)
     
-    Q, grid_map, val_map= bilinear_surface(surface_in, grid_s, grid_t, S, T)
+    Q, grid_map, val_map= bilinear_surface(surface_orig, grid_s, grid_t, S, T)
     #----------------------------------------------------------------------------
     #------------------------Step 3---------------------------------------------
     #calculate distance between consecutive x,y,z in the slice also add the final 
@@ -167,13 +169,13 @@ for i in range(span_low, span_high):#(Ns_desired):
     dc= Pk[-1]
     # construct the residual vector
     R= build_residual(T, Q, D, zc, dc, tc, n_points)
-    
+            
     # take max of residual
     R_max= np.max(np.abs(R))
     #-------------------Step 6--------------------------------------------------
     # add a check to exit the newton method
     # ex: np.max(R)<1e-5 
-    if np.max(R) < 1e-4:
+    if R_max < 1e-5:
         # set exit flag as False
         exit_flag= 0
         # store the last Q(x,y,z) points as the final section
@@ -193,9 +195,52 @@ for i in range(span_low, span_high):#(Ns_desired):
     else:
         Pk1_tmp= Pk + delta
         Pk1= (omega)*Pk1_tmp + (1-omega)*Pk        
+    
+    
+    # ------Block to plot line-search----------------------------
+    if ls_flag:
+        # store R0
+        R0_norm= np.linalg.norm(R)
+        # create the relaxation factor as a GP
+        alpha= np.geomspace(1e-6, 1, num=100, endpoint= True)
+        #initialize numpy array
+        num= alpha.shape[0]
+        R1_norm= np.zeros(num, dtype= float)
+        # for loop to get different R1s
+        for k in range(num):
+            
+            Pk1= Pk + alpha[k]*delta
+            # udate S and T
+            S= Pk1[ind_sin] 
+            T= Pk1[ind_tin]
+    
+            Q, _, _= bilinear_surface(surface_orig, grid_s, grid_t, S, T)
+    
+            D= calculate_distance(Q[:, 0], Q[:, 1], Q[:, 2], flag= True)
+    
+            #update dc
+            dc= Pk1[-1]
+            # construct the residual vector
+            R1= build_residual(T, Q, D, zc, dc, tc, n_points)         
+            # store  
+            R1_norm[k]= np.linalg.norm(R1)
+        
+        # plot
+        from matplotlib import pyplot as plt
+        plt.figure()
+        plt.semilogx(alpha, R1_norm/R0_norm, '-')
+        plt.title('Z coordinate= %0.2f m'%zc)
+        plt.ylabel(r'$R_1$/$R_0$ [-]')
+        plt.xlabel(r'$\alpha$ [-]')
+        plt.grid()
+        plt.show()
+        #exit the while loop
+        exit_flag= 0
+        break
+    
     #update P
     Pk=Pk1
-       
+        
     # print out the norm of residual, iteration and norm of delta
     R_norm= np.linalg.norm(R)
     delta_norm= np.linalg.norm(delta)
@@ -216,5 +261,7 @@ for i in range(span_low, span_high):#(Ns_desired):
 from matplotlib import pyplot as plt    
 fig= plt.figure('compare')
 plt.plot(surface_new[span_low, :, 0], surface_new[span_low, :, 1], 'xr', label='new')
-plt.plot(surface_in[span_low, :, 0], surface_in[span_low, :, 1], 'b', label='orig')
+plt.plot(surface_in[span_low, :, 0], surface_in[span_low, :, 1], 'b', label='init- rearranged')
+plt.plot(surface_orig[span_low, :, 0], surface_orig[span_low, :, 1], 'g', label='orig')
+plt.plot()
 plt.legend(loc='best')

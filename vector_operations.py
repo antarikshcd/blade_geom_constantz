@@ -7,7 +7,7 @@ Created on Tue Dec 12 15:42:49 2017
 """
 import numpy as np
 from scipy.sparse import coo_matrix
-
+    
 def build_residual(T, Q, D, zc, dc, tc, n_points):
     """ Constructs the residual vector.
         
