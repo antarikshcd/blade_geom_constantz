@@ -92,7 +92,7 @@ span_high= 1
 alpha= 1 # relaxation factor for the newton method
 sor_flag= 0 #flag to trigger NEWTON SOR method
 omega= 0.1 # relaxation factor for the SOR method
-ls_flag= 1 # flag for line search
+ls_flag= 0 # flag for line search
 
 # generate the intial surface with points closely arranged to z-zc=0 planes
 surface_in, param_map_in = search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec)
@@ -111,7 +111,7 @@ for i in range(span_low, span_high):#(Ns_desired):
   
   # perturbing the surface----------------
   Pk_in[ind_sin] += 100.
-  Pk_in[ind_tin] +=100.
+  Pk_in[ind_tin] -=100.
   surface_perturb, _, _= bilinear_surface(surface_in, grid_s, grid_t, 
                                       Pk_in[ind_sin], Pk_in[ind_tin])
 # guess for dc_in

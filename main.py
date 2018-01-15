@@ -41,12 +41,17 @@ optimization_file= '../../optimization.sqlite'
 iteration = 22
 #generate the lofted surface
 #surface = kb6_loftedblade(optimization_file, iteration, N_c, N_s)
-blade_length= 10.55 # in metres
+#blade_length= 10.5538 # in metres for KB6
+blade_length= 11.0639 # in metres for KB1
 #surface_tmp= pickling.load_obj('KB6_surf_1000by1000') 
-#surface_tmp= pickling.load_obj('KB6_surf_noshearsweep')
+surface_tmp= pickling.load_obj('KB6_surface_S500_C100')
 #surface_tmp= pickling.load_obj('KB6_surface_S500_C10')
-surface_tmp= pickling.load_obj('KB1_surface_S100_C100')
+#surface_tmp= pickling.load_obj('KB6_surface_S30_C100')
+#surface_tmp= pickling.load_obj('KB6_surface_S1000_C100')
+#surface_tmp= pickling.load_obj('KB1_surface_S100_C100')
 #surface_tmp= pickling.load_obj('KB1_surface_S500_C10')
+#surface_tmp= pickling.load_obj('KB1_surface_S1000_C100')
+surface_tmp= pickling.load_obj('KB1_surface_S500_C100')
 
 # set the number of chordwise N_c and spanwise sections N_s for the surface
 N_c= surface_tmp.shape[0]
@@ -76,7 +81,7 @@ n_points= Nc_desired
 
 surface_new= np.zeros((Ns_desired, Nc_desired, 3), dtype= float)
 #set value of zc
-zc_vec= np.linspace(0, 1*blade_length, Ns_desired)
+zc_vec= np.linspace(0, 1*blade_length, Ns_desired, endpoint = False)
 #zc_vec= surface_orig[:, 0, 2]
 #initialize the Pk vector with s and t points
 Pk_in= np.zeros(2*n_points+1, dtype=float)
@@ -95,11 +100,11 @@ grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
 alpha= 0.1 # relaxation factor for the newton method
 sor_flag= 0 #flag to trigger NEWTON SOR method
 omega= 0.1 # relaxation factor for the SOR method
-ls_flag= 1 # flag for the line search plot
+ls_flag= 0 # flag for the line search plot
 
 # testing for specific spans
-span_low = 0
-span_high = 1
+span_low = 49
+span_high = 50
 
 # generate the intial surface with points closely arranged to z-zc=0 planes
 surface_in, param_map_in = search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec)
@@ -111,7 +116,7 @@ for i in range(span_low, span_high):#(Ns_desired):
   zc= zc_vec[i]
   # store the current span value
   Pk_in[ind_sin]= param_map_in[span_low, :, 0]
-    
+ 
   # guess for dc_in
   D_in= calculate_distance(surface_in[span_low, :, 0], 
                            surface_in[span_low, :, 1], 
@@ -128,7 +133,7 @@ for i in range(span_low, span_high):#(Ns_desired):
   
   # initialize while loop counter
   count=0 
-  
+  R_norm_prev= 1
   while exit_flag:
   #-------------------------------------------------------------------
     # obtain the X,Y,Z points for the S and T vectors 
@@ -136,7 +141,7 @@ for i in range(span_low, span_high):#(Ns_desired):
     S= Pk[ind_sin] 
     T= Pk[ind_tin]
     
-    S, T= boundary_correction(S, T, n_points)
+    S, T= boundary_correction(S, T, Ns_desired, Nc_desired)
     
     Q, grid_map, val_map= bilinear_surface(surface_orig, grid_s, grid_t, S, T)
     #----------------------------------------------------------------------------
@@ -175,7 +180,7 @@ for i in range(span_low, span_high):#(Ns_desired):
     #-------------------Step 6--------------------------------------------------
     # add a check to exit the newton method
     # ex: np.max(R)<1e-5 
-    if R_max < 1e-5:
+    if R_max < 1e-4:
         # set exit flag as False
         exit_flag= 0
         # store the last Q(x,y,z) points as the final section
@@ -228,10 +233,11 @@ for i in range(span_low, span_high):#(Ns_desired):
         # plot
         from matplotlib import pyplot as plt
         plt.figure()
-        plt.semilogx(alpha, R1_norm/R0_norm, '-')
+        plt.loglog(alpha, R1_norm/R0_norm, '-')
         plt.title('Z coordinate= %0.2f m'%zc)
         plt.ylabel(r'$R_1$/$R_0$ [-]')
         plt.xlabel(r'$\alpha$ [-]')
+        #plt.xlim([0 , 0.01])
         plt.grid()
         plt.show()
         #exit the while loop
@@ -247,21 +253,23 @@ for i in range(span_low, span_high):#(Ns_desired):
     jac_main_cond= np.linalg.cond(jac_main_array)
     
     print('----------------------------------------------------')
-    print('\n Iteration= %i, dc= %3.5f, Main jac cond= %e'%(count, dc, jac_main_cond))
-    print('\n Residual : R_max= %3.5f, R_norm= %3.5f \n'%(R_max, R_norm))
-    print('\n Delta vector : delta_norm= %3.5f \n'%(delta_norm))
+    print('\n Span location: S= %i, radius= %3.2f \n'%(i, zc))
+    print('\n Iteration= %i, dc= %3.7f, Main jac cond= %e'%(count, dc, jac_main_cond))
+    print('\n Residual : R_max= %3.7f, R_norm= %3.7f, R_new/R_prev= %3.5f \n'%(R_max, R_norm, R_norm/R_norm_prev))
+    print('\n Delta vector : delta_norm= %3.7f \n'%(delta_norm))
     print('----------------------------------------------------')
     time.sleep(0.3)
     
     #increase count
     count+=1 
     
+    R_norm_prev= R_norm
     
 # check
-from matplotlib import pyplot as plt    
-fig= plt.figure('compare')
-plt.plot(surface_new[span_low, :, 0], surface_new[span_low, :, 1], 'xr', label='new')
-plt.plot(surface_in[span_low, :, 0], surface_in[span_low, :, 1], 'b', label='init- rearranged')
-plt.plot(surface_orig[span_low, :, 0], surface_orig[span_low, :, 1], 'g', label='orig')
-plt.plot()
-plt.legend(loc='best')
+#from matplotlib import pyplot as plt    
+#fig= plt.figure('compare')
+#plt.plot(surface_new[span_low, :, 0], surface_new[span_low, :, 1], 'xr', label='new')
+#plt.plot(surface_in[span_low, :, 0], surface_in[span_low, :, 1], 'b', label='init- rearranged')
+#plt.plot(surface_orig[span_low, :, 0], surface_orig[span_low, :, 1], 'g', label='orig')
+#plt.plot()
+#plt.legend(loc='best')

@@ -33,25 +33,26 @@ def search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec):
             
     return surface_in, param_map_in 
 
-def boundary_correction(S, T, n_points):
+def boundary_correction(S, T, N_s, N_c):
    #------------------treatment for S and/or T exceeding the bound-space---------
    # TODO: Solution for the spanwise  
    S[S < 0] = 0
-   S[S >= n_points] = n_points-1
+   S[S >= N_s] = N_s - 1
    
    if np.min(T) < 0:
        T_low = T[T < 0]
-       quot = abs(T_low)/n_points
+       quot = abs(T_low)/N_c
        quot = quot.astype(int)
-       rem = abs(T_low) - quot*n_points
-       T[T < 0] = rem
+       rem = abs(T_low) - quot*N_c
+       #T[T < 0] = rem
+       T[T<0]= (N_c-1) - rem
        
-   if np.max(T)>= n_points:
-       T_high= T[T >= n_points]
-       quot= abs(T_high)/n_points
+   if np.max(T)>= N_c:
+       T_high= T[T >= N_c]
+       quot= abs(T_high)/N_c
        quot= quot.astype(int)
-       rem= abs(T_high) - quot*n_points
-       T[T >= n_points]= rem
+       rem= abs(T_high) - quot*N_c
+       T[T >= N_c]= rem
     
    return S, T 
 #----------------------------------------------------------------------------   
