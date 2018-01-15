@@ -41,8 +41,8 @@ optimization_file= '../../optimization.sqlite'
 iteration = 22
 #generate the lofted surface
 #surface = kb6_loftedblade(optimization_file, iteration, N_c, N_s)
-#blade_length= 10.5538 # in metres for KB6
-blade_length= 11.0639 # in metres for KB1
+blade_length= 10.5538 # in metres for KB6
+#blade_length= 11.0639 # in metres for KB1
 #surface_tmp= pickling.load_obj('KB6_surf_1000by1000') 
 surface_tmp= pickling.load_obj('KB6_surface_S500_C100')
 #surface_tmp= pickling.load_obj('KB6_surface_S500_C10')
@@ -51,7 +51,7 @@ surface_tmp= pickling.load_obj('KB6_surface_S500_C100')
 #surface_tmp= pickling.load_obj('KB1_surface_S100_C100')
 #surface_tmp= pickling.load_obj('KB1_surface_S500_C10')
 #surface_tmp= pickling.load_obj('KB1_surface_S1000_C100')
-surface_tmp= pickling.load_obj('KB1_surface_S500_C100')
+#surface_tmp= pickling.load_obj('KB1_surface_S500_C100')
 
 # set the number of chordwise N_c and spanwise sections N_s for the surface
 N_c= surface_tmp.shape[0]
@@ -103,11 +103,14 @@ omega= 0.1 # relaxation factor for the SOR method
 ls_flag= 0 # flag for the line search plot
 
 # testing for specific spans
-span_low = 49
-span_high = 50
+span_low = 1
+span_high = N_s
 
 # generate the intial surface with points closely arranged to z-zc=0 planes
 surface_in, param_map_in = search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec)
+
+#time the iteration
+t0= time.time()
 #----------------------------------------------------------------------------
 for i in range(span_low, span_high):#(Ns_desired):
   #flag for exiting the while loop
@@ -264,7 +267,12 @@ for i in range(span_low, span_high):#(Ns_desired):
     count+=1 
     
     R_norm_prev= R_norm
-    
+
+tend= time.time()
+t_elapsed= tend - t0
+print('\n Geometry built from Z= %3.2f m to Z= %3.2f m \n'
+        %(zc_vec[span_low], zc_vec[span_high-1]))
+print('Time taken= %3.4f s \n'%t_elapsed)
 # check
 #from matplotlib import pyplot as plt    
 #fig= plt.figure('compare')
