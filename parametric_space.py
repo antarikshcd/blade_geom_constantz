@@ -44,7 +44,6 @@ def boundary_correction(S, T, N_s, N_c):
        quot = abs(T_low)/N_c
        quot = quot.astype(int)
        rem = abs(T_low) - quot*N_c
-       #T[T < 0] = rem
        T[T<0]= (N_c-1) - rem
        
    if np.max(T)>= N_c:
