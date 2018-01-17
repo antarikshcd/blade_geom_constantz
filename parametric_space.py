@@ -33,26 +33,76 @@ def search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec):
             
     return surface_in, param_map_in 
 
+#def boundary_correction(S, T, N_s, N_c):
+   #------------------treatment for S and/or T exceeding the bound-space---------
+   # TODO: Solution for the spanwise  
+#   S[S < 0] = 0
+#   S[S >= N_s] = N_s - 1
+  
+#   rem= np.empty(0, dtype= float)
+#   ind= np.empty(0, dtype= int)
+   # T - correction
+   # correct for T<0
+#   if np.min(T) < 0:
+#       T_low = T[T < 0]
+#       ind_low = np.where(T < 0)[0]
+#       quot = abs(T_low)/N_c
+#       quot = quot.astype(int)
+#       rem_low = abs(T_low) - quot*N_c
+#       Nc_low= rem_low.shape[0]
+#       rem = np.append(rem, rem_low)
+#       ind= np.append(ind, ind_low)
+   # correct for T>= N_c    
+#   if np.max(T)>= N_c:
+#       T_high= T[T >= N_c]
+#       ind_high= np.where(T >= N_c)[0]
+#       quot= abs(T_high)/N_c
+#       quot= quot.astype(int)
+#       rem_high= abs(T_high) - quot*N_c
+#       Nc_high= rem_high.shape[0]
+#       rem = np.append(rem, rem_high)
+#       ind= np.append(ind, ind_high)
+   
+#   rem_shape= rem.shape[0]    
+#   if rem_shape is not 0:
+#       for k in range(rem_shape):
+#           if ind[k] < N_c/2 and rem[k] < N_c/2:
+#               T[ind[k]] = rem[k]
+           
+#           elif ind[k] < N_c/2 and rem[k] >= N_c/2:
+#               T[ind[k]] = N_c - rem[k]
+              
+#           elif ind[k] > N_c/2 and rem[k] < N_c/2:
+#               T[ind[k]] = N_c - rem[k]
+               
+#           elif ind[k] > N_c/2 and rem[k] >= N_c/2:
+#               T[ind[k]] = rem[k]
+           
+#   return S, T
+
 def boundary_correction(S, T, N_s, N_c):
    #------------------treatment for S and/or T exceeding the bound-space---------
    # TODO: Solution for the spanwise  
-   S[S < 0] = 0
-   S[S >= N_s] = N_s - 1
    
+  
+   # T - correction
+   # correct for T<0
    if np.min(T) < 0:
-       T_low = T[T < 0]
+       ind_low = np.where(T < 0)[0]
+       T_low = T[ind_low]
        quot = abs(T_low)/N_c
        quot = quot.astype(int)
-       rem = abs(T_low) - quot*N_c
-       T[T<0]= (N_c-1) - rem
-       
+       rem_low = abs(T_low) - quot*N_c
+       T[ind_low]= N_c - rem_low
+       # correct for T>= N_c    
    if np.max(T)>= N_c:
-       T_high= T[T >= N_c]
+       ind_high = np.where(T >= N_c)[0]
+       T_high = T[ind_high]
        quot= abs(T_high)/N_c
        quot= quot.astype(int)
-       rem= abs(T_high) - quot*N_c
-       T[T >= N_c]= rem
-    
+       rem_high = abs(T_high) - quot*N_c
+       T[ind_high] = rem_high
+          
    return S, T 
 #----------------------------------------------------------------------------   
        

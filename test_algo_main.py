@@ -86,8 +86,8 @@ grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
 #T= np.zeros((10, 1), dtype= float) #chordwise section
 #T[0:, 0]= np.arange(0, 10)
 # span sections where the surface is to be found
-span_low= 0
-span_high= 1
+span_low= 2
+span_high= 3
 #
 alpha= 1 # relaxation factor for the newton method
 sor_flag= 0 #flag to trigger NEWTON SOR method
@@ -110,8 +110,8 @@ for i in range(span_low, span_high):#(Ns_desired):
   Pk_in[ind_sin]= param_map_in[span_low, :, 0]
   
   # perturbing the surface----------------
-  Pk_in[ind_sin] += 100.
-  Pk_in[ind_tin] -=100.
+  Pk_in[ind_sin] += 100
+  Pk_in[ind_tin] -= 100
   surface_perturb, _, _= bilinear_surface(surface_in, grid_s, grid_t, 
                                       Pk_in[ind_sin], Pk_in[ind_tin])
 # guess for dc_in
@@ -137,7 +137,7 @@ for i in range(span_low, span_high):#(Ns_desired):
     S= Pk[ind_sin] 
     T= Pk[ind_tin]
     
-    S, T= boundary_correction(S, T, n_points)
+    S, T= boundary_correction(S, T, N_s, N_c)
     
     Q, grid_map, val_map= bilinear_surface(surface_orig, grid_s, grid_t, S, T)
     #----------------------------------------------------------------------------
