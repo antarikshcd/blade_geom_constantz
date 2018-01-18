@@ -44,9 +44,9 @@ iteration = 22
 blade_length= 10.5538 # in metres for KB6
 #blade_length= 11.0639 # in metres for KB1
 #surface_tmp= pickling.load_obj('KB6_surf_1000by1000') 
-#surface_tmp= pickling.load_obj('KB6_surface_S500_C100')
+surface_tmp= pickling.load_obj('KB6_surface_S500_C100')
 #surface_tmp= pickling.load_obj('KB6_surface_S500_C10')
-surface_tmp= pickling.load_obj('KB6_surface_S30_C100')
+#surface_tmp= pickling.load_obj('KB6_surface_S30_C100')
 #surface_tmp= pickling.load_obj('KB6_surface_S1000_C100')
 #surface_tmp= pickling.load_obj('KB1_surface_S100_C100')
 #surface_tmp= pickling.load_obj('KB1_surface_S500_C10')
@@ -95,37 +95,16 @@ ind_tin= np.arange(1, 2*n_points, 2)
 Pk_in[ind_tin]= tin
 #----------------Step 2------------------------------------------------
 # Create the parametric space
-#grid multiplier in s direction
-s_mult2= 10
-s_mult1= 10
-# grid multiplier in t-direction
-t_mult2= 10
-t_mult1 = 10
-# generate grid
-grid_s, grid_t= np.mgrid[-s_mult1 * N_s : s_mult2 * N_s, 
-                         -t_mult1 * N_c : t_mult2 * N_c]
-# extend the surface accordingly
-Ns_ext= grid_s.shape[0]
-Nc_ext= grid_s.shape[1]
-surface_ext= np.zeros((Ns_ext, Nc_ext, 3), dtype= float)
-#assign the original surface
-surface_ext[N_s*s_mult1:N_s*s_mult1+N_s, N_c*t_mult1:N_c*t_mult1+N_c, 0] = surface_orig[:, :, 0] #X
-surface_ext[N_s*s_mult1:N_s*s_mult1+N_s, N_c*t_mult1:N_c*t_mult1+N_c, 1] = surface_orig[:, :, 1] #Y
-surface_ext[N_s*s_mult1:N_s*s_mult1+N_s, N_c*t_mult1:N_c*t_mult1+N_c, 2] = surface_orig[:, :, 2] #Z
-#assign the extended surface for S<0 
-surface_ext[0: N_s*s_mult1, N_c*t_mult1:N_c*t_mult1+N_c, 0] = np.tile(surface_orig[0, :, 0], 
-                                                   (s_mult1*N_s, 1))
-
-#grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
+grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
 #-----------------------------------------------------------------------
-alpha= 0.05 # relaxation factor for the newton method
+alpha= 0.1 # relaxation factor for the newton method
 sor_flag= 0 #flag to trigger NEWTON SOR method
 omega= 0.1 # relaxation factor for the SOR method
 ls_flag= 0 # flag for the line search plot
 
 # testing for specific spans
-span_low = 3
-span_high = 4
+span_low = 0
+span_high = N_s
 
 # generate the intial surface with points closely arranged to z-zc=0 planes
 surface_in, param_map_in = search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec)
@@ -165,7 +144,7 @@ for i in range(span_low, span_high):#(Ns_desired):
     S= Pk[ind_sin] 
     T= Pk[ind_tin]
     
-    S, T= boundary_correction(S, T, Ns_desired, Nc_desired)
+    #S, T= boundary_correction(S, T, Ns_desired, Nc_desired)
     
     Q, grid_map, val_map= bilinear_surface(surface_orig, grid_s, grid_t, S, T)
     #----------------------------------------------------------------------------
