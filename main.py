@@ -44,7 +44,7 @@ iteration = 22
 blade_length= 10.5538 # in metres for KB6
 #blade_length= 11.0639 # in metres for KB1
 #surface_tmp= pickling.load_obj('KB6_surf_1000by1000') 
-surface_tmp= pickling.load_obj('KB6_surface_S500_C100')
+surface_tmp= pickling.load_obj('KB6_surface_S500_C100') # works for boundary_corrections
 #surface_tmp= pickling.load_obj('KB6_surface_S500_C10')
 #surface_tmp= pickling.load_obj('KB6_surface_S30_C100')
 #surface_tmp= pickling.load_obj('KB6_surface_S1000_C100')
@@ -97,13 +97,13 @@ Pk_in[ind_tin]= tin
 # Create the parametric space
 grid_s, grid_t= np.mgrid[0:N_s, 0:N_c]
 #-----------------------------------------------------------------------
-alpha= 0.1 # relaxation factor for the newton method
+alpha= 5e-2 # relaxation factor for the newton method
 sor_flag= 0 #flag to trigger NEWTON SOR method
 omega= 0.1 # relaxation factor for the SOR method
 ls_flag= 0 # flag for the line search plot
 
 # testing for specific spans
-span_low = 0
+span_low = 293
 span_high = N_s
 
 # generate the intial surface with points closely arranged to z-zc=0 planes
@@ -183,7 +183,7 @@ for i in range(span_low, span_high):#(Ns_desired):
     #-------------------Step 6--------------------------------------------------
     # add a check to exit the newton method
     # ex: np.max(R)<1e-5 
-    if R_max < 1e-4:
+    if R_max < 1e-3:
         # set exit flag as False
         exit_flag= 0
         # store the last Q(x,y,z) points as the final section
@@ -284,3 +284,6 @@ if span_high - span_low ==1:
     plt.plot(surface_orig[span_low, :, 0], surface_orig[span_low, :, 1], 'g', label='orig')
     plt.plot() 
     plt.legend(loc='best')
+else:
+    # save the file as a numpy readable
+    np.save('KB6_surf_parplanes_s%ic%i.npy'%(N_s, N_c), surface_new)    
