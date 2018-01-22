@@ -24,7 +24,7 @@ from vector_operations import calculate_distance
 from vector_operations import jacobian_Q
 from vector_operations import jacobian_D
 from vector_operations import jacobian_main
-from boundary_correction import extended_grids
+from parametric_space import extended_grid
 #format of surface_orig is [i, j, k] where i= Number of cross-sections,
 # j= Number of spanwise sections, k= (x, y, z)
 #surface_orig= pickling.load_obj('KB6_surf_noshearsweep') 

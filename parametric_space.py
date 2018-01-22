@@ -7,6 +7,109 @@ Created on Mon Dec 11 12:56:39 2017
 """
 import numpy as np
 
+def extended_grid(surface_orig, N_s, N_c, a, b):
+    """
+    Boundary correction by extending the parametric grid in S and T. This is
+    necessary to ensure C1-continuity at the boundaries. The present solution clips
+    S at the boundary leading to discontinuities at the boundaries. At the T boundaries
+    the solution loops for T values over-shooting the bounds of T=0 and T= N_c-1
+    by considering the cross-section as a closed surface. 
+
+    Extension to spanwise direction 'S': 
+    The grid is extended to fit the profile of the cross-sections at the relevant
+    boundary. So for all S < 0, the crosssections will be the same as that at
+    the root. Whereas, for S > (N_s-1) it will be the same as that of 
+    S = N_s.
+    
+    Extension to chordwise direction 'T':
+    The grid is extended such that a circular loop exists. So, for t<0 the
+
+    """    
+    # generate grid
+    grid_s, grid_t= np.mgrid[-a * N_s : (a+1) * N_s, 
+                             - b * N_c : (b+1) * N_c]
+    # extend the surface accordingly
+    Ns_ext= grid_s.shape[0]
+    Nc_ext= grid_s.shape[1]
+    surface_ext= np.zeros((Ns_ext, Nc_ext, 3), dtype= float)
+    s_ind1= N_s * a
+    s_ind2= N_s * (a+1)
+    t_ind1= N_c * b
+    t_ind2= N_c * (b+1)
+
+    # assign the original surface for S,T: ie S-->[0, Ns-1] and T-->[0, Nc-1]
+    surface_ext[s_ind1 : s_ind1+N_s, t_ind1 : t_ind1+N_c, 0] = surface_orig[:, :, 0] #X
+    surface_ext[s_ind1 : s_ind1+N_s, t_ind1 : t_ind1+N_c, 1] = surface_orig[:, :, 1] #Y
+    surface_ext[s_ind1 : s_ind1+N_s, t_ind1 : t_ind1+N_c, 2] = surface_orig[:, :, 2] #Z
+
+    # assign the extended surface for S: S<0, t--> [0, Nc -1] 
+    surface_ext[0 : s_ind1, t_ind1 : t_ind1+N_c, 0] = np.tile(surface_orig[0, :, 0], 
+                                                              (s_ind1, 1)) #X
+    surface_ext[0 : s_ind1, t_ind1 : t_ind1+N_c, 1] = np.tile(surface_orig[0, :, 1], 
+                                                              (s_ind1, 1)) #Y
+    surface_ext[0 : s_ind1, t_ind1 : t_ind1+N_c, 2] = np.tile(surface_orig[0, :, 2], 
+                                                              (s_ind1, 1)) #Z
+
+    # assign the extended surface for S: S>Ns-1, t--> [0, Nc-1]
+    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, t_ind1 : t_ind1+N_c, 0] = np.tile(
+                                          surface_orig[N_s-1, :, 0], (s_ind2 - N_s, 1)) #X
+    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, t_ind1 : t_ind1+N_c, 1] = np.tile(
+                                      surface_orig[N_s-1, :, 1], (s_ind2 - N_s, 1)) #Y
+    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, t_ind1 : t_ind1+N_c, 2] = np.tile(
+                                      surface_orig[N_s-1, :, 2], (s_ind2 - N_s, 1)) #Z
+
+
+    #assign the extended surface for S: s-->[0, Ns-1] and T < 0
+    surface_ext[s_ind1 : s_ind1+N_s, 0 : t_ind1, 0] = np.tile(
+                                          surface_orig[:, :, 0], (1, b)) #X
+    surface_ext[s_ind1 : s_ind1+N_s, 0 : t_ind1, 1] = np.tile(
+                                          surface_orig[:, :, 1], (1, b)) #Y
+    surface_ext[s_ind1 : s_ind1+N_s, 0 : t_ind1, 2] = np.tile(
+                                          surface_orig[:, :, 2], (1, b)) #Z
+
+    # assign the extended surface for S: S-->[0, Ns-1] and T >= N_c
+    surface_ext[s_ind1 : s_ind1+N_s, t_ind1+N_c : t_ind2+t_ind1, 0] = np.tile(
+                                          surface_orig[:, :, 0], (1, b)) #X
+    surface_ext[s_ind1 : s_ind1+N_s, t_ind1+N_c : t_ind2+t_ind1, 1] = np.tile(
+                                       surface_orig[:, :, 1], (1, b)) #Y
+    surface_ext[s_ind1 : s_ind1+N_s, t_ind1+N_c : t_ind2+t_ind1, 2] = np.tile(
+                                      surface_orig[:, :, 2], (1, b)) #Z
+
+    # assign the extended surface for T: S<0 and T < 0
+    surface_ext[0 : s_ind1, 0 : t_ind1, 0] = np.tile(
+                                      surface_orig[0, :, 0], (s_ind1, b)) #X
+    surface_ext[0 : s_ind1, 0 : t_ind1, 1] = np.tile(
+                                      surface_orig[0, :, 1], (s_ind1, b)) #Y
+    surface_ext[0 : s_ind1, 0 : t_ind1, 2] = np.tile(
+                                      surface_orig[0, :, 2], (s_ind1, b)) #Z
+
+    # assign the extended surface for T: S<0 and T >= Nc
+    surface_ext[0 : s_ind1, t_ind1+N_c : t_ind2+t_ind1, 0] = np.tile(
+                                      surface_orig[0, :, 0], (s_ind1, b)) #X
+    surface_ext[0 : s_ind1, t_ind1+N_c : t_ind2+t_ind1, 1] = np.tile(
+                                      surface_orig[0, :, 1], (s_ind1, b)) #Y
+    surface_ext[0 : s_ind1, t_ind1+N_c : t_ind2+t_ind1, 2] = np.tile(
+                                      surface_orig[0, :, 2], (s_ind1, b)) #Z
+
+    # assign the extended surface for T: S>=Ns and T < 0
+    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, 0 : t_ind1, 0] = np.tile(
+                                      surface_orig[N_s-1, :, 0], (s_ind2 - N_s, b)) #X
+    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, 0 : t_ind1, 1] = np.tile(
+                                      surface_orig[N_s-1, :, 1], (s_ind2 - N_s, b)) #Y
+    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, 0 : t_ind1, 2] = np.tile(
+                                      surface_orig[N_s-1, :, 2], (s_ind2 - N_s, b)) #Z
+
+    # assign the extended surface for T: S>=Ns and T >= Nc
+    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, t_ind1+N_c : t_ind2+t_ind1, 0] = np.tile(
+                                      surface_orig[N_s-1, :, 0], (s_ind2 - N_s, b)) #X
+    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, t_ind1+N_c : t_ind2+t_ind1, 1] = np.tile(
+                                      surface_orig[N_s-1, :, 1], (s_ind2 - N_s, b)) #Y
+    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, t_ind1+N_c : t_ind2+t_ind1, 2] = np.tile(
+                                      surface_orig[N_s-1, :, 2], (s_ind2 - N_s, b)) #Z
+
+
+    return grid_s, grid_t, surface_ext
+
 def search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec):
     #Initialize the initial guess of the surface
     surface_in= np.zeros((N_s, N_c, 3), dtype= float)
@@ -32,53 +135,6 @@ def search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec):
             param_map_in[i, j, 1]= j
             
     return surface_in, param_map_in 
-
-#def boundary_correction(S, T, N_s, N_c):
-   #------------------treatment for S and/or T exceeding the bound-space---------
-   # TODO: Solution for the spanwise  
-#   S[S < 0] = 0
-#   S[S >= N_s] = N_s - 1
-  
-#   rem= np.empty(0, dtype= float)
-#   ind= np.empty(0, dtype= int)
-   # T - correction
-   # correct for T<0
-#   if np.min(T) < 0:
-#       T_low = T[T < 0]
-#       ind_low = np.where(T < 0)[0]
-#       quot = abs(T_low)/N_c
-#       quot = quot.astype(int)
-#       rem_low = abs(T_low) - quot*N_c
-#       Nc_low= rem_low.shape[0]
-#       rem = np.append(rem, rem_low)
-#       ind= np.append(ind, ind_low)
-   # correct for T>= N_c    
-#   if np.max(T)>= N_c:
-#       T_high= T[T >= N_c]
-#       ind_high= np.where(T >= N_c)[0]
-#       quot= abs(T_high)/N_c
-#       quot= quot.astype(int)
-#       rem_high= abs(T_high) - quot*N_c
-#       Nc_high= rem_high.shape[0]
-#       rem = np.append(rem, rem_high)
-#       ind= np.append(ind, ind_high)
-   
-#   rem_shape= rem.shape[0]    
-#   if rem_shape is not 0:
-#       for k in range(rem_shape):
-#           if ind[k] < N_c/2 and rem[k] < N_c/2:
-#               T[ind[k]] = rem[k]
-           
-#           elif ind[k] < N_c/2 and rem[k] >= N_c/2:
-#               T[ind[k]] = N_c - rem[k]
-              
-#           elif ind[k] > N_c/2 and rem[k] < N_c/2:
-#               T[ind[k]] = N_c - rem[k]
-               
-#           elif ind[k] > N_c/2 and rem[k] >= N_c/2:
-#               T[ind[k]] = rem[k]
-           
-#   return S, T
 
 def boundary_correction(S, T, N_s, N_c):
    #------------------treatment for S and/or T exceeding the bound-space---------

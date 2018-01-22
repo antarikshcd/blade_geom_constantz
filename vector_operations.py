@@ -8,7 +8,7 @@ Created on Tue Dec 12 15:42:49 2017
 import numpy as np
 from scipy.sparse import coo_matrix
     
-def build_residual(T, Q, D, zc, dc, tc, n_points):
+def build_residual(T, Q, D, zc, dc, tin, n_D, n_points, flag = False):
     """ Constructs the residual vector.
         
     Args:
@@ -33,11 +33,14 @@ def build_residual(T, Q, D, zc, dc, tc, n_points):
  
     # fill up the distance function di-dc
     #update dc
-    R[:n_points]= D - dc
+    R[:n_D]= D - dc
     #fill up the z coordinate function z-zc
-    R[n_points:2*n_points]= Q[:, 2] - zc
+    R[n_D : 2*n_D + 1*(n_points - n_D)]= Q[:, 2] - zc
     #fill up the t1-tc function 
-    R[2*n_points]= T[0] - tc
+    R[2*n_D + 1*(n_points - n_D)]= T[0] - tin[0]
+    #
+    if not flag:
+        R[2*n_points] = T[-1] - tin[-1]
     
     return R
     
@@ -313,7 +316,7 @@ def test_jacobian_Q(Qin, Qf_s, Qf_t, h, Ns_desired):
     
     return jac_qp_test, dXds, dXdt, dYds, dYdt, dZds, dZdt
 
-def jacobian_D(Q, D):
+def jacobian_D(Q, D, n_D, n_points, flag = False):
     """ Stores the jacobian of the distances between consecutive points on the
     cross-sectional slice with respect to the dependent cartesian coordiantes.
     The partial derivatives are calculated from analytic gradients.
@@ -335,10 +338,11 @@ def jacobian_D(Q, D):
     delta_y= y[1:] - y[0:-1]
     delta_z= z[1:] - z[0:-1]
     
-    #add the last element such that P(N+1) = P(0)
-    delta_x= np.append(delta_x, x[0] - x[-1])
-    delta_y= np.append(delta_y, y[0] - y[-1])
-    delta_z= np.append(delta_z, z[0] - z[-1])
+    if flag:
+        #add the last element such that P(N+1) = P(0)
+        delta_x= np.append(delta_x, x[0] - x[-1])
+        delta_y= np.append(delta_y, y[0] - y[-1])
+        delta_z= np.append(delta_z, z[0] - z[-1])
     
     # calculate the partials
     dDdX1= - np.divide(delta_x, D)
@@ -350,21 +354,18 @@ def jacobian_D(Q, D):
     dDdZ1= - np.divide(delta_z, D)
     dDdZ2= - dDdZ1
     
-    # number of points on the slice
-    n_points= D.shape[0]
-    
     #total sizeof the jacobian
-   # size= 3*(n_points**2)
+    # size= 3*(n_points**2)
     # store dxds, dxdt, dyds, dydt, dzds, dzdt in that order
     # for every 1 distance, there will be 6 non-zero partials
-    data= np.zeros(6*n_points, dtype= float)
-    row= np.zeros(6*n_points, dtype= int)
-    col= np.zeros(6*n_points, dtype= int)
+    data= np.zeros(6*n_D, dtype= float)
+    row= np.zeros(6*n_D, dtype= int)
+    col= np.zeros(6*n_D, dtype= int)
     
         
     #store the partial derivatives
     #TODO without for loop
-    ind= np.arange(0, 6*n_points, 6)
+    ind= np.arange(0, 6*n_D, 6)
     
     #store the partial derivatives in the data vector
     data[ind]= dDdX1
@@ -375,7 +376,7 @@ def jacobian_D(Q, D):
     data[ind+5]= dDdZ2
     
     #store the row indices of corresponding partials
-    row_d= np.arange(0, n_points, 1)
+    row_d= np.arange(0, n_D, 1)
     row[ind]= row_d
     row[ind+1]= row_d
     row[ind+2]= row_d
@@ -383,9 +384,9 @@ def jacobian_D(Q, D):
     row[ind+4]= row_d
     row[ind+5]= row_d
     
-    col_x= np.arange(0, 3*n_points, 3)
-    col_y= np.arange(1, 3*n_points, 3)
-    col_z= np.arange(2, 3*n_points, 3)
+    col_x= np.arange(0, 3*n_D, 3)
+    col_y= np.arange(1, 3*n_D, 3)
+    col_z= np.arange(2, 3*n_D, 3)
     
     col[ind]= col_x
     col[ind+1]= col_y
@@ -393,49 +394,15 @@ def jacobian_D(Q, D):
     col[ind+3]= col_x + 3
     col[ind+4]= col_y + 3
     col[ind+5]= col_z + 3
-    #overwriting the final three indices to close the loop
-    col[-1]= 2 #del(dn)/del(z1)
-    col[-2]= 1 #del(dn)/del(z2)
-    col[-3]= 0 #del(dn)/del(z3)
-    # inititalize the row andcolumn indices for the partials being stored
-   # col_x= 0
-   # col_y= 1
-   # col_z= 2
-   # row_d= 0
     
-   # for i in range(n_points):
-   #     ind= 6*i
-        # store the partial derivatives in the data vector
-   #     data[ind]= dDdX1[i]
-   #     data[ind+1]= dDdY1[i]
-   #     data[ind+2]= dDdZ1[i]
-   #     data[ind+3]= dDdX2[i]
-   #     data[ind+4]= dDdY2[i]
-   #     data[ind+5]= dDdZ2[i]
-        
-        # store the row indices of coresponding partials
-    #    row[ind]= row_d
-    #    row[ind+1]= row_d
-    #    row[ind+2]= row_d
-    #    row[ind+3]= row_d
-    #    row[ind+4]= row_d
-    #    row[ind+5]= row_d
-        
-        #store the column indices of corresponding partials
-    #    col[ind]= col_x
-    #    col[ind+1]= col_y
-    #    col[ind+2]= col_z
-    #    col[ind+3]= col_x + 3
-    #    col[ind+4]= col_y + 3
-    #    col[ind+5]= col_z + 3
-        
-        #increment the indices
-     #   col_x+= 6
-     #   col_y+= 6
-     #   col_z+= 6
-     #   row_d+= 1
+    if flag:
+        #overwriting the final three indices to close the loop
+        col[-1]= 2 #del(dn)/del(z1)
+        col[-2]= 1 #del(dn)/del(z2)
+        col[-3]= 0 #del(dn)/del(z3)
     
-    jac_d= coo_matrix((data,(row, col)), shape= (n_points, 3*n_points))
+    # construct the jacobian
+    jac_d= coo_matrix((data,(row, col)), shape= (n_D, 3*n_points))
     
     return jac_d, dDdX1, dDdX2, dDdY1, dDdY2, dDdZ1, dDdZ2
 
@@ -584,7 +551,7 @@ def test_jacobian_DP(Q, Qf_s, Qf_t, D, h):
     
     return jac_dp_test, dDds1, dDds2, dDdt1, dDdt2
 
-def jacobian_main(dZds, dZdt, jac_dp, n_points):
+def jacobian_main(dZds, dZdt, jac_dp, n_points, n_D, flag = False):
     """ Constructs the main jacobian matrix of size 2N x (2N+1)
     """
     #
@@ -612,7 +579,7 @@ def jacobian_main(dZds, dZdt, jac_dp, n_points):
     data_dzdp[ind_dzdp]= dZds
     data_dzdp[ind_dzdp + 1]= dZdt
     #fill in row
-    row_ind_dzdp= np.arange(n_points, 2*n_points, 1)
+    row_ind_dzdp= np.arange(n_D, 2*n_D + 1*(n_points-n_D), 1)
     row_dzdp[ind_dzdp]= row_ind_dzdp
     row_dzdp[ind_dzdp + 1]= row_ind_dzdp
     #fill in column
@@ -626,13 +593,13 @@ def jacobian_main(dZds, dZdt, jac_dp, n_points):
     col= np.append(col, col_dzdp)
     
     #fill in the gradient of (d-dc) wrt to (dc) = -1
-    data_dc= np.zeros(n_points, dtype=float)
-    row_dc= np.zeros(n_points, dtype=int)
-    col_dc= np.zeros(n_points, dtype=int)
+    data_dc= np.zeros(n_D, dtype = float)
+    row_dc= np.zeros(n_D, dtype = int)
+    col_dc= np.zeros(n_D, dtype = int)
     # fill in data
     data_dc[:]= -1
     # fill in row indices
-    row_ind_dDdp= np.arange(0, n_points)
+    row_ind_dDdp= np.arange(0, n_D)
     row_dc= row_ind_dDdp
     # fill in column indices
     col_dc[:]= 2*n_points
@@ -643,22 +610,23 @@ def jacobian_main(dZds, dZdt, jac_dp, n_points):
     
     # make the del(t1-tc)/del(P). only add non zero entities.
     data_dt1dp= 1.0
-    row_dt1dp= 2*n_points
+    row_dt1dp= 2*n_D + 1*(n_points - n_D)
     col_dt1dp= 1
     #append it to the main jacobian row, column and data
     data= np.append(data, data_dt1dp)
     row= np.append(row, row_dt1dp)
     col= np.append(col, col_dt1dp)
     
-    # make the del(tn-tc)/del(P). only add non zero entities.
-   # data_dtNdp= 1.0
-   # row_dtNdp= 2*n_points + 1
-   # col_dtNdp= 2*n_points
-    #append it to the main jacobian row, column and data
-   # data= np.append(data, data_dtNdp)
-   # row= np.append(row, row_dtNdp)
-   # col= np.append(col, col_dtNdp)
-    
+    if not flag:
+        # make the del(tn-tc)/del(P). only add non zero entities.
+        data_dtNdp= 1.0
+        row_dtNdp= 2*n_points
+        col_dtNdp= 2*n_points - 1
+        #append it to the main jacobian row, column and data
+        data= np.append(data, data_dtNdp)
+        row= np.append(row, row_dtNdp)
+        col= np.append(col, col_dtNdp)
+    # construct the main jacobian
     jac_main= coo_matrix((data,(row, col)), shape= (2*n_points + 1, 2*n_points+1))
     
     return jac_main
