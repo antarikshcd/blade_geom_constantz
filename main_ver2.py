@@ -32,14 +32,14 @@ tol = 1e-5
 # flag for the line search plot
 flag_ls = 0 
 # flag to trigger the script to generate surface within the workflow
-flag_gensurf = 1 # 0: to load numpy data; 1: to load pickle data 2: generate surface
+flag_gensurf = 0 # 0: to load numpy data; 1: to load pickle data 2: generate surface
 # flag to switch for closed surfaces from open surface
 flag_surf = False # False: for open surface; True: for closed surface 
 # filename to load data (Note: set optimization_file if flag_gensurf = 3)
-filename = './input_surfaces/KB6_surface_S1000_C1000_fv1'#KB6_surface_S500_C100 #KB6_surface_S100_C100_fv2
+filename = './input_surfaces/KB6_surface_S100_C100_fv2'#KB6_surface_S1000_C1000_fv1'#KB6_surface_S500_C100
 #filename = './input_surfaces/KB1_surface_S500_C100'
 # initialize the desired slice points and spanwise sections
-Ns = 500 # span
+Ns = 100 # span
 n_points = 100 # points on a slice (Note: also cross-sectional points)
 # testing for specific spans
 span_low = 0 # span to be calculated
@@ -231,4 +231,4 @@ if span_high - span_low == 1:
     plt.legend(loc = 'best')
 else:
     # save the file as a numpy readable
-    np.save('KB6_parsurf_s%ic%i_fv3.npy'%(Ns, n_points), surface_new)
+    np.save('KB6_parsurf_s%ic%i_fv4.npy'%(Ns, n_points), surface_new)
