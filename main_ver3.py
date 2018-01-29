@@ -24,10 +24,11 @@ from vector_operations import jacobian_Q
 from vector_operations import jacobian_D
 from vector_operations import jacobian_main
 from distributions import distro_cosine
+from newton_method import adaptive_alpha
 from mini_extgrid import ext_grid
 #------------To be channged before each run----------------------------------
 # relaxation factor for the newton method
-alpha = 1e-1
+alpha_max = 1 
 # set tolerance for max of residual such that Rmax < tol
 tol = 1e-5
 # flag for the line search plot
@@ -36,16 +37,18 @@ flag_ls = 0
 flag_gensurf = 0 # 0: to load numpy data; 1: to load pickle data 2: generate surface
 # flag to switch for closed surfaces from open surface
 flag_surf = False # False: for open surface; True: for closed surface 
+# flag to include the end point ie the tip
+flag_endpoint = True
 # filename to load data (Note: set optimization_file if flag_gensurf = 3)
-filename = './input_surfaces/KB6_surface_S100_C100_fv2'#KB6_surface_S500_C100'
-#filename = './input_surfaces/KB6_surface_S1000_C1000_fv1_shearsweep'
+#filename = './input_surfaces/KB6_surface_S1000_C1000_fv1_shearsweep'#KB6_surface_S500_C100 #'
+filename = './input_surfaces/KB6_surface_S100_C100_fv2'
 #filename = './input_surfaces/KB1_surface_S500_C100'
 # initialize the desired slice points and spanwise sections
 Ns = 100 # span
-n_points = 100 # points on a slice (Note: also cross-sectional points)
+n_points = 20 # points on a slice (Note: also cross-sectional points)
 # testing for specific spans
 span_low = 99 # span to be calculated
-span_high = Ns # upper limit excluded
+span_high = 100 # upper limit excluded
 # set blade length in metres
 blade_length = 10.5538 # in metres for KB6
 #blade_length= 11.0639 # in metres for KB1
@@ -56,7 +59,7 @@ surface_orig = load_surface(filename, flag_gensurf)
 # scale surface by blade_length
 surface_orig *= blade_length
 # generate the Z plane position vector
-zc_vec = np.linspace(0, 1*blade_length, Ns, endpoint = True)
+zc_vec = np.linspace(0, 1*blade_length, Ns, endpoint = flag_endpoint)
 #zc_vec = distro_cosine(Ns, 1*blade_length, end = False)
 # initialize the array for the final surface being generated
 surface_new = np.zeros((Ns, n_points, 3), dtype = float)
@@ -66,7 +69,8 @@ Pk_in = np.zeros(2*n_points+1, dtype = float)
 ind_sin = np.arange(0, 2*n_points, 2)
 # initialize the intended T points indices in state vector
 ind_tin = np.arange(1, 2*n_points, 2)
-#
+# initialize alpha_prev
+#alpha_prev = np.zeros(2*n_points+1, dtype = float)
 #-------------- Create the parametric space ----------------------------------
 #grid multiplier in s direction
 a = 0
@@ -80,9 +84,7 @@ Nc_orig = surface_orig.shape[1]
 #grid_s, grid_t, surface_ext = extended_grid(surface_orig, Ns_orig,
 #                                            Nc_orig, a, b)
 grid_s, grid_t, surface_ext = ext_grid(surface_orig, Ns_orig,
-                                            Nc_orig, a, b)
-
-
+                                            Nc_orig, 1)
 #-----------------------------------------------------------------------------
 #-------initialize list and arrays to store state data of iterations---------
 count_store = np.zeros(Ns, dtype = int) # stores the iterations per section
@@ -136,15 +138,17 @@ for i in range(span_low, span_high):
     count = 0 
     # initialize the Residual norm
     R_norm_prev = 1
+    # set the value of alpha
+    #alpha_prev[:] = alpha_max
+    alpha_prev = alpha_max
     # execute the Newton - iteration
     while exit_flag == 1:
         # store s and t
         S = Pk[ind_sin] 
         T = Pk[ind_tin]
         # adjust for boundary correction in t
-        S, T = boundary_correction(S, T, Ns_orig, Nc_orig)
+        #S, T = boundary_correction(S, T, Ns_orig, Nc_orig)
         # interpolate on the parametric space of the original fine grid
-        S[:] = 100
         Q, grid_map, val_map = bilinear_surface(surface_ext, grid_s, 
                                                grid_t, S, T)
         # calculate the distance between consecutive points
@@ -186,8 +190,15 @@ for i in range(span_low, span_high):
         # jac_main_inv= np.linalg.pinv(jac_main_array)
         # solve the change in state delta(P)= P(k+1) - Pk
         delta = - np.linalg.solve(jac_main_array, R)
+        ##
+        #alpha = adaptive_alpha_old(Pk, delta, Nc_orig, alpha_prev, ind_sin, ind_tin, n_points)
+        alpha = adaptive_alpha(Pk, delta, Nc_orig, ind_tin, n_points, alpha_prev)
+        # update alpha
+        #alpha_prev = alpha
+        #alpha = 0.1
+        ##
         # update the state
-        Pk1 = Pk + alpha * delta
+        Pk1 = Pk + np.multiply(alpha, delta)
         #update old P vector
         Pk = Pk1
         
@@ -202,6 +213,7 @@ for i in range(span_low, span_high):
                                                                 jac_main_cond))
         print('\n Residual : R_max = %3.7f, R_norm = %3.7f, \
                R_new/R_prev = %3.5f \n'%(R_max, R_norm, R_norm/R_norm_prev))
+        print('\n Relaxation factor : alpha = %3.7f \n'%(alpha))
         print('\n Delta vector : delta_norm= %3.7f \n'%(delta_norm))
         print('-------------------------------------------------------------')
         time.sleep(0.1)
@@ -231,11 +243,11 @@ if span_high - span_low == 1:
     plt.plot(surface_new[span_low, :, 0], surface_new[span_low, :, 1], 
              'xr', label = 'new')
     plt.plot(surface_in[span_low, :, 0], surface_in[span_low, :, 1], 
-             'b', label = 'init- rearranged')
-    plt.plot(surface_orig[span_low, :, 0], surface_orig[span_low, :, 1], 
-             'g', label = 'orig')
+             'o-b', label = 'init- rearranged')
+    #plt.plot(surface_orig[span_low, :, 0], surface_orig[span_low, :, 1], 
+    #         'g', label = 'orig')
     plt.plot() 
     plt.legend(loc = 'best')
 else:
     # save the file as a numpy readable
-    np.save('KB6_parsurf_s%ic%i_fv4.npy'%(Ns, n_points), surface_new)
+    np.save('KB6_parsurf_s%ic%i_fv6.npy'%(Ns, n_points), surface_new)

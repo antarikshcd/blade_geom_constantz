@@ -110,37 +110,37 @@ def extended_grid(surface_orig, N_s, N_c, a, b):
 
     return grid_s, grid_t, surface_ext
 
-def search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec):
+#def search_plane(sin, tin, N_s, N_c, surface_orig, zc_vec):
     #Initialize the initial guess of the surface
-    surface_in= np.zeros((N_s, N_c, 3), dtype= float)
-    param_map_in= np.zeros((N_s, N_c, 2), dtype= int) 
-    for i in sin:
-        for j in tin:
-            # vector that gives the minimum z-distance to the requested z plane
-            delz= np.abs(zc_vec[i] - surface_orig[:, j, 2])
-            # for equidistant values take the value which is lower than current z-coordinate
-            # this is automatically taken care of by the np.argmin() method    
-            # Find the corresponding S-index
-            s_ind= np.argmin(delz)
-            #Use the (s_ind,t) value to obtain the (x,y,z) coordinate 
-            x= surface_orig[s_ind, j, 0]
-            y= surface_orig[s_ind, j, 1]
-            z= surface_orig[s_ind, j, 2]
-            # and assign it to the new Surface matrix
-            surface_in[i, j, 0]= x 
-            surface_in[i, j, 1]= y
-            surface_in[i, j, 2]= z
-            # store the S,T info from the original surface
-            param_map_in[i, j, 0]= s_ind
-            param_map_in[i, j, 1]= j
-            
-    return surface_in, param_map_in 
+#    surface_in= np.zeros((N_s, N_c, 3), dtype= float)
+#    param_map_in= np.zeros((N_s, N_c, 2), dtype= int) 
+#    for i in sin:
+#        for j in tin:
+#            # vector that gives the minimum z-distance to the requested z plane
+#            delz= np.abs(zc_vec[i] - surface_orig[:, j, 2])
+#            # for equidistant values take the value which is lower than current z-coordinate
+#            # this is automatically taken care of by the np.argmin() method    
+#            # Find the corresponding S-index
+#            s_ind= np.argmin(delz)
+#            #Use the (s_ind,t) value to obtain the (x,y,z) coordinate 
+#            x= surface_orig[s_ind, j, 0]
+#            y= surface_orig[s_ind, j, 1]
+#            z= surface_orig[s_ind, j, 2]
+#            # and assign it to the new Surface matrix
+#            surface_in[i, j, 0]= x 
+#            surface_in[i, j, 1]= y
+#            surface_in[i, j, 2]= z
+#            # store the S,T info from the original surface
+#            param_map_in[i, j, 0]= s_ind
+#            param_map_in[i, j, 1]= j
+ #           
+#    return surface_in, param_map_in 
 
 def boundary_correction(S, T, N_s, N_c):
    #------------------treatment for S and/or T exceeding the bound-space---------
    # TODO: Solution for the spanwise  
-   
-  
+   #S[S<0] = 0
+   #S[S>=N_s] = N_s - 1
    # T - correction
    # correct for T<0
    if np.min(T) < 0:
