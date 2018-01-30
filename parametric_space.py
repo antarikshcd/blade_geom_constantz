@@ -139,8 +139,8 @@ def extended_grid(surface_orig, N_s, N_c, a, b):
 def boundary_correction(S, T, N_s, N_c):
    #------------------treatment for S and/or T exceeding the bound-space---------
    # TODO: Solution for the spanwise  
-   #S[S<0] = 0
-   #S[S>=N_s] = N_s - 1
+   S[S<0] = 0
+   S[S>=N_s] = N_s
    # T - correction
    # correct for T<0
    if np.min(T) < 0:

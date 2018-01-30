@@ -25,7 +25,7 @@ from vector_operations import jacobian_D
 from vector_operations import jacobian_main
 from distributions import distro_cosine
 from newton_method import adaptive_alpha
-from mini_extgrid import ext_grid
+from extend import extrap_grid
 #------------To be channged before each run----------------------------------
 # relaxation factor for the newton method
 alpha_max = 1 
@@ -45,10 +45,10 @@ filename = './input_surfaces/KB6_surface_S100_C100_fv2'
 #filename = './input_surfaces/KB1_surface_S500_C100'
 # initialize the desired slice points and spanwise sections
 Ns = 100 # span
-n_points = 20 # points on a slice (Note: also cross-sectional points)
+n_points = 10 # points on a slice (Note: also cross-sectional points)
 # testing for specific spans
-span_low = 99 # span to be calculated
-span_high = 100 # upper limit excluded
+span_low = 0 # span to be calculated
+span_high = 1 # upper limit excluded
 # set blade length in metres
 blade_length = 10.5538 # in metres for KB6
 #blade_length= 11.0639 # in metres for KB1
@@ -73,7 +73,7 @@ ind_tin = np.arange(1, 2*n_points, 2)
 #alpha_prev = np.zeros(2*n_points+1, dtype = float)
 #-------------- Create the parametric space ----------------------------------
 #grid multiplier in s direction
-a = 0
+a = 1
 # grid multiplier in t direction
 b = 0
 # spanwise sections in original grid
@@ -84,7 +84,7 @@ Nc_orig = surface_orig.shape[1]
 #grid_s, grid_t, surface_ext = extended_grid(surface_orig, Ns_orig,
 #                                            Nc_orig, a, b)
 grid_s, grid_t, surface_ext = ext_grid(surface_orig, Ns_orig,
-                                            Nc_orig, 1)
+                                       Nc_orig, a)
 #-----------------------------------------------------------------------------
 #-------initialize list and arrays to store state data of iterations---------
 count_store = np.zeros(Ns, dtype = int) # stores the iterations per section
@@ -194,8 +194,8 @@ for i in range(span_low, span_high):
         #alpha = adaptive_alpha_old(Pk, delta, Nc_orig, alpha_prev, ind_sin, ind_tin, n_points)
         alpha = adaptive_alpha(Pk, delta, Nc_orig, ind_tin, n_points, alpha_prev)
         # update alpha
-        #alpha_prev = alpha
-        #alpha = 0.1
+        alpha_prev = alpha
+        #alpha = 0.01
         ##
         # update the state
         Pk1 = Pk + np.multiply(alpha, delta)
