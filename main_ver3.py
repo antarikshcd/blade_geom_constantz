@@ -25,7 +25,7 @@ from vector_operations import jacobian_D
 from vector_operations import jacobian_main
 from distributions import distro_cosine
 from newton_method import adaptive_alpha
-from extend import extrap_grid
+from extend import extend_grid
 #------------To be channged before each run----------------------------------
 # relaxation factor for the newton method
 alpha_max = 1 
@@ -38,17 +38,17 @@ flag_gensurf = 0 # 0: to load numpy data; 1: to load pickle data 2: generate sur
 # flag to switch for closed surfaces from open surface
 flag_surf = False # False: for open surface; True: for closed surface 
 # flag to include the end point ie the tip
-flag_endpoint = True
+flag_endpoint = False
 # filename to load data (Note: set optimization_file if flag_gensurf = 3)
-#filename = './input_surfaces/KB6_surface_S1000_C1000_fv1_shearsweep'#KB6_surface_S500_C100 #'
-filename = './input_surfaces/KB6_surface_S100_C100_fv2'
+filename = './input_surfaces/KB6_surface_S1000_C1000_fv1_shearsweep'#KB6_surface_S500_C100 #'
+#filename = './input_surfaces/KB6_surface_S100_C100_fv2'
 #filename = './input_surfaces/KB1_surface_S500_C100'
 # initialize the desired slice points and spanwise sections
-Ns = 100 # span
-n_points = 10 # points on a slice (Note: also cross-sectional points)
+Ns = 500 # span
+n_points = 100 # points on a slice (Note: also cross-sectional points)
 # testing for specific spans
-span_low = 0 # span to be calculated
-span_high = 1 # upper limit excluded
+span_low = 499 # span to be calculated
+span_high = 500 # upper limit excluded
 # set blade length in metres
 blade_length = 10.5538 # in metres for KB6
 #blade_length= 11.0639 # in metres for KB1
@@ -83,8 +83,7 @@ Nc_orig = surface_orig.shape[1]
 # generate the extended parametric grid and the corresponding surface
 #grid_s, grid_t, surface_ext = extended_grid(surface_orig, Ns_orig,
 #                                            Nc_orig, a, b)
-grid_s, grid_t, surface_ext = ext_grid(surface_orig, Ns_orig,
-                                       Nc_orig, a)
+grid_s, grid_t, surface_ext = extend_grid(surface_orig)
 #-----------------------------------------------------------------------------
 #-------initialize list and arrays to store state data of iterations---------
 count_store = np.zeros(Ns, dtype = int) # stores the iterations per section

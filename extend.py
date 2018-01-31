@@ -6,101 +6,25 @@ Created on Wed Jan 24 17:22:38 2018
 @author: antariksh
 """
 import numpy as np
-from surface3d import cylinder3D
 from scipy import interpolate
 
-def extrap_grid(surface_orig, N_s, N_c, a):
+def extend_grid(surface_orig):
     """
-    Boundary correction by extending the parametric grid in S and T. This is
-    necessary to ensure C1-continuity at the boundaries. The present solution clips
-    S at the boundary leading to discontinuities at the boundaries. At the T boundaries
-    the solution loops for T values over-shooting the bounds of T=0 and T= N_c-1
-    by considering the cross-section as a closed surface. 
-
-    Extension to spanwise direction 'S': 
-    The grid is extended to fit the profile of the cross-sections at the relevant
-    boundary. So for all S < 0, the crosssections will be the same as that at
-    the root. Whereas, for S > (N_s-1) it will be the same as that of 
-    S = N_s.
+    The grid is extended by the extrapolated value of z_root and z_tip
+    to the left of the root and right of the tip respectively.
+    The extension is by one span location in either direction
+    a) root extension: blade is extrapolated
+    b) tip extension: blade is protruded along the normal.    
     
-    Extension to chordwise direction 'T':
-    The grid is extended such that a circular loop exists. So, for t<0 the
-
     """    
-    # generate grid
-    grid_s, grid_t= np.mgrid[ -a : N_s + a, 
-                              0 : N_c]
-    # extend the surface accordingly
-    Ns_ext= grid_s.shape[0]
-    Nc_ext= grid_s.shape[1]
-    surface_ext= np.zeros((Ns_ext, Nc_ext, 3), dtype= float)
-    s_ind1= a
-    s_ind2= N_s + a
-    S = grid_s[:, 0]
-    # extend the grid in the negative S direction
-    
-    # store the indices of last 3 points to the root
-    ind_root = np.zeros(3, dtype = int)
-    ind_root[0] = S[2 + a] # index of the third span from the edge
-    ind_root[1] = S[1 + a] # index of the second span from edge
-    ind_root[2] = S[0 + a] # index of last span
-    X_root, Y_root, Z_root = extrapolate_surface(S, surface_orig, ind_root)
-    
-    # store the indices of last 3 points to the tip
-    ind_tip = np.zeros(3, dtype = int)
-    ind_tip[0] = S[-3 - a] # index of the third span from the edge
-    ind_tip[1] = S[-2 - a] # index of the second span from edge
-    ind_tip[2] = S[-1 - a] # index of last span
-    X_tip, Y_tip, Z_tip = extrapolate_surface(S, surface_orig, ind_tip)
-    
-    # assign the original surface for S,T: ie S-->[0, Ns-1] and T-->[0, Nc-1]
-    surface_ext[s_ind1 : s_ind1+N_s, 
-                0 : N_c, 0] = surface_orig[:, :, 0] #X
-    surface_ext[s_ind1 : s_ind1+N_s, 
-                0 : N_c, 1] = surface_orig[:, :, 1] #Y
-    surface_ext[s_ind1 : s_ind1+N_s, 
-                0 : N_c, 2] = surface_orig[:, :, 2] #Z
-
-    
-    # assign the extended surface for S: S<0, t--> [0, Nc -1] 
-    surface_ext[0 : s_ind1, 0 : N_c, 0] = X_root
-    surface_ext[0 : s_ind1, 0 : N_c, 1] = Y_root
-    surface_ext[0 : s_ind1, 0 : N_c, 2] = Z_root
-
-    # assign the extended surface for S: S>Ns-1, t--> [0, Nc-1]
-    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, 0 : N_c, 0] = X_tip
-    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, 0 : N_c, 1] = Y_tip
-    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, 0 : N_c, 2] = Z_tip   
-
-    return grid_s, grid_t, surface_ext
-
-def extrap_grid2(surface_orig, rs=1, ts=1):
-    """
-    Boundary correction by extending the parametric grid in S and T. This is
-    necessary to ensure C1-continuity at the boundaries. The present solution clips
-    S at the boundary leading to discontinuities at the boundaries. At the T boundaries
-    the solution loops for T values over-shooting the bounds of T=0 and T= N_c-1
-    by considering the cross-section as a closed surface. 
-
-    Extension to spanwise direction 'S': 
-    The grid is extended to fit the profile of the cross-sections at the relevant
-    boundary. So for all S < 0, the crosssections will be the same as that at
-    the root. Whereas, for S > (N_s-1) it will be the same as that of 
-    S = N_s.
-    
-    Extension to chordwise direction 'T':
-    The grid is extended such that a circular loop exists. So, for t<0 the
-
-    """    
-    # rs = number of sections beyond root
-    # number of sections beyond tip
-    # generate grid
+    # spanwise sections in the imported surface
     Ns_orig = surface_orig.shape[0]
+    # chordwise sections in the imported surface
     Nc_orig = surface_orig.shape[1]
     # S original
     S_orig = np.arange(0, Ns_orig)
     # generate the extended grid
-    grid_sext, grid_text = np.mgrid[ -rs : Ns_orig + ts, 0 : Nc_orig]
+    grid_sext, grid_text = np.mgrid[ -1 : Ns_orig + 1, 0 : Nc_orig]
     # extend S
     S_ext = grid_sext[:, 0]
     # extend the surface accordingly
@@ -108,13 +32,23 @@ def extrap_grid2(surface_orig, rs=1, ts=1):
     Nc_ext = grid_text.shape[1]
     surface_ext = np.zeros((Ns_ext, Nc_ext, 3), dtype= float)
     
+    # assign the original surface for S,T: ie S-->[0, Ns-1] and T-->[0, Nc-1]
+    surface_ext[1 : Ns_orig+1, 
+                :, 0] = surface_orig[:, :, 0] #X
+    surface_ext[1 : Ns_orig+1, 
+                :, 1] = surface_orig[:, :, 1] #Y
+    surface_ext[1 : Ns_orig+1, 
+                 :, 2] = surface_orig[:, :, 2] #Z
+        
     # extrapolate the root by 1 section using linear interpolation 
     ind = np.zeros(3, dtype = int)
     ind[0] = S_orig[2]
     ind[1] = S_orig[1]
     ind[2] = S_orig[0]
+    
     # extrapolate
     Xroot, Yroot, Zroot = extrapolate_surface(S_ext, surface_orig, ind)
+    
     # build the extrapolated surface at the root
     surface_ext[0, :, 0] = Xroot
     surface_ext[0, :, 1] = Yroot
@@ -124,22 +58,74 @@ def extrap_grid2(surface_orig, rs=1, ts=1):
     ind[0] = S_orig[Ns_orig-3]
     ind[1] = S_orig[Ns_orig-2]
     ind[2] = S_orig[Ns_orig-1]
-    #extrapolate at the thip but only the z-axes
-    _, _, Ztip = extrapolate_surface(S_ext, surface_orig, ind)
     
-    surface_ext[Ns_ext - 1, :, 0] = surface_orig[Ns_orig - 1, :, 0]
-    surface_ext[Ns_ext - 1, :, 1] = surface_orig[Ns_orig - 1, :, 1]
-    surface_ext[Ns_ext - 1, :, 2] = Ztip
+    #obtain the normal vector for the tip surface
+    norm = normal_vec(surface_orig[Ns_orig - 1, :, :])
     
-    # assign the original surface for S,T: ie S-->[0, Ns-1] and T-->[0, Nc-1]
-    surface_ext[1 : Ns_orig+1, 
-                :, 0] = surface_orig[:, :, 0] #X
-    surface_ext[1 : Ns_orig+1, 
-                :, 1] = surface_orig[:, :, 1] #Y
-    surface_ext[1 : Ns_orig+1, 
-                 :, 2] = surface_orig[:, :, 2] #Z
+    # check the z-direction of the norm and appropriately reverse orientation
+    if norm[2] < 0:
+        norm *= -1
+    
+    # get the distances of each point on tip to corr. point on prev. section
+    ln = np.sqrt(np.power(surface_orig[Ns_orig - 1, :, 0] - 
+                          surface_orig[Ns_orig - 2, :, 0], 2) + 
+                 np.power(surface_orig[Ns_orig - 1, :, 1] - 
+                          surface_orig[Ns_orig - 2, :, 1], 2) +
+                 np.power(surface_orig[Ns_orig - 1, :, 2] - 
+                          surface_orig[Ns_orig - 2, :, 2], 2))         
+    
+    # construct the extension vector
+    ln_vec = np.mean(ln) * norm
+        
+    for i in range(Nc_orig):
+        # construct the extended tip
+        surface_ext[Ns_ext - 1, i, :]  = (surface_orig[Ns_orig - 1, i, :] +
+                                          ln_vec)
+    
     
     return grid_sext, grid_text, surface_ext
+
+
+def normal_vec(surface):
+    """
+    Obtain the normal vector of the surface.
+    
+    Args:
+        surface (float): Cross-sectional surface definition of order N x3
+        
+    Return:
+        normal(float) : normal unit vector of shape (1x3)
+    """
+    # number of points on the surface
+    N = surface.shape[0] 
+    # take the first and last points on the surface and find the furthest points
+    # first point on the lower surface corres. to t=0
+    P1 = surface[0, :]
+    #last point on the surface corresponding to t = N-1
+    Pn = surface[N-1, :]
+    
+    # find the point whose dif. in distance from P1 and Pn is min
+    d1 = np.sqrt(np.power(P1[0] - surface[:, 0], 2) + 
+                 np.power(P1[1] - surface[:, 1], 2) + 
+                 np.power(P1[2] - surface[:, 2], 2))
+    
+    dn = np.sqrt(np.power(Pn[0] - surface[:, 0], 2) + 
+                 np.power(Pn[1] - surface[:, 1], 2) + 
+                 np.power(Pn[2] - surface[:, 2], 2))
+    
+    ind_min = np.argmin(abs(d1 - dn))
+    # the third point on the surface
+    Pm = surface[ind_min, :]
+    
+    # define the vectors
+    V1m = Pm - P1 # vector from first point on lower surface to mid point
+    Vnm = Pm - Pn # vector from last point on upper surface to mid point
+    
+    # get the normal
+    norm_vec = np.cross(V1m, Vnm)
+    norm = norm_vec/np.linalg.norm(norm_vec)
+    
+    return norm
 
 def extrapolate_surface(S, surface, ind):
     ind0 = ind[0] # index of the third span from the edge
@@ -184,6 +170,70 @@ def extrapolate_surface(S, surface, ind):
     Z3 = Z2 + dZds*(S[ind2 - 1] - S[ind1 - 1])
     
     return X3, Y3, Z3
+    
+def extrap_grid(surface_orig, N_s, N_c, a):
+    """
+    Boundary correction by extending the parametric grid in S and T. This is
+    necessary to ensure C1-continuity at the boundaries. The present solution clips
+    S at the boundary leading to discontinuities at the boundaries. At the T boundaries
+    the solution loops for T values over-shooting the bounds of T=0 and T= N_c-1
+    by considering the cross-section as a closed surface. 
+
+    Extension to spanwise direction 'S': 
+    The grid is extended to fit the profile of the cross-sections at the relevant
+    boundary. So for all S < 0, the crosssections will be the same as that at
+    the root. Whereas, for S > (N_s-1) it will be the same as that of 
+    S = N_s.
+    
+    Extension to chordwise direction 'T':
+    The grid is extended such that a circular loop exists. So, for t<0 the
+
+    """    
+    # generate grid
+    grid_s, grid_t= np.mgrid[ -a : N_s + a, 
+                              0 : N_c]
+    # extend the surface accordingly
+    Ns_ext= grid_s.shape[0]
+    Nc_ext= grid_s.shape[1]
+    surface_ext= np.zeros((Ns_ext, Nc_ext, 3), dtype= float)
+    s_ind1= a
+    s_ind2= N_s + a
+    S = grid_s[:, 0]
+    # extend the grid in the negative S direction
+    # store the indices of last 3 points to the root
+    ind_root = np.zeros(3, dtype = int)
+    ind_root[0] = S[2 + a] # index of the third span from the edge
+    ind_root[1] = S[1 + a] # index of the second span from edge
+    ind_root[2] = S[0 + a] # index of last span
+    X_root, Y_root, Z_root = extrapolate_surface(S, surface_orig, ind_root)
+    
+    # store the indices of last 3 points to the tip
+    ind_tip = np.zeros(3, dtype = int)
+    ind_tip[0] = S[-3 - a] # index of the third span from the edge
+    ind_tip[1] = S[-2 - a] # index of the second span from edge
+    ind_tip[2] = S[-1 - a] # index of last span
+    X_tip, Y_tip, Z_tip = extrapolate_surface(S, surface_orig, ind_tip)
+    
+    # assign the original surface for S,T: ie S-->[0, Ns-1] and T-->[0, Nc-1]
+    surface_ext[s_ind1 : s_ind1+N_s, 
+                0 : N_c, 0] = surface_orig[:, :, 0] #X
+    surface_ext[s_ind1 : s_ind1+N_s, 
+                0 : N_c, 1] = surface_orig[:, :, 1] #Y
+    surface_ext[s_ind1 : s_ind1+N_s, 
+                0 : N_c, 2] = surface_orig[:, :, 2] #Z
+
+    
+    # assign the extended surface for S: S<0, t--> [0, Nc -1] 
+    surface_ext[0 : s_ind1, 0 : N_c, 0] = X_root
+    surface_ext[0 : s_ind1, 0 : N_c, 1] = Y_root
+    surface_ext[0 : s_ind1, 0 : N_c, 2] = Z_root
+
+    # assign the extended surface for S: S>Ns-1, t--> [0, Nc-1]
+    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, 0 : N_c, 0] = X_tip
+    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, 0 : N_c, 1] = Y_tip
+    surface_ext[s_ind1 + N_s : s_ind2 + s_ind1, 0 : N_c, 2] = Z_tip   
+
+    return grid_s, grid_t, surface_ext
 
 def extrap_np(surface_orig, rs, ts):
     """ Uses scipy's interp1D command to extraplate in x,y,z
@@ -225,81 +275,3 @@ def extrap_np(surface_orig, rs, ts):
         surface_ext[:, i, 2] = z_ext
     
     return grid_sext, grid_text, surface_ext
-#-------------script to check the extrapolation of the grid-------------------
-# load blade surface
-surface_blade = np.load('./test_surfaces/KB6_surforig_100s100c_testing.npy')    
-# load the cylinder surface with Ns=5, Nc = 3, radius = 1 and length = 5
-Ns_cyl = 5
-Nc_cyl = 10
-r = 1
-length_cyl = 5
-#create the cylinder surface
-surface_cyl = cylinder3D(Ns_cyl, Nc_cyl, r, length_cyl)
-# get the extended cylinder surface
-grid_s_cylext, grid_t_cylext, surface_cylext = extrap_grid(surface_cyl, Ns_cyl,
-                                                           Nc_cyl, 1)
-
-# get the extended blade surface
-Ns_blade = surface_blade.shape[0]
-Nc_blade = surface_blade.shape[1]
-grid_s_blext, grid_t_blext, surface_blext = extrap_grid(surface_blade, 
-                                                        Ns_blade, Nc_blade, 1)
-
-#interpolate using splines---------------------------------------------------
-grid_s_blext2, grid_t_blext2, surface_blext2 = extrap_np(surface_blade, 1, 1)
-
-grid_s_cylext2, grid_t_cylext2, surface_cylext2 = extrap_np(surface_cyl, 1, 1)
-
-grid_s_blext3, grid_t_blext3, surface_blext3 = extrap_grid2(surface_blade, 1, 1)
-#-----------------------------------------------------------------------------
-# plot check
-# plot cylinder root with the extrpolates surface at the root
-from matplotlib import pyplot as plt
-fig = plt.figure('comp_root')
-plt.plot(surface_cylext[0, : ,0], surface_cylext[0, : ,1], 'xr', 
-         label = 'extrap_root')
-plt.plot(surface_cylext[1, : ,0], surface_cylext[1, : ,1], 'b', 
-         label = 'root')
-plt.xlabel('x')
-plt.ylabel('y')
-plt.legend('best')
-plt.title('cylinder')
-plt.show()
-# show near tip extrapolation
-fig = plt.figure('comp_tip')
-plt.plot(surface_cylext[Ns_cyl+1, : ,0], surface_cylext[Ns_cyl+1, : ,1], 'xr', 
-         label = 'extrap_tip')
-plt.plot(surface_cylext[Ns_cyl, : ,0], surface_cylext[Ns_cyl, : ,1], 'b', 
-         label = 'tip')
-plt.xlabel('x')
-plt.ylabel('y')
-plt.legend('best')
-plt.title('cylinder')
-plt.show()
-
-# plot the blade root and extrapolated section
-fig = plt.figure('comp_root2')
-plt.plot(surface_blext[0, : ,0], surface_blext[0, : ,1], 'xr', 
-         label = 'extrap_root')
-plt.plot(surface_blext[1, : ,0], surface_blext[1, : ,1], 'b', 
-         label = 'root')
-plt.plot(surface_blext2[0, : ,0], surface_blext2[0, : ,1], 'g')
-
-plt.xlabel('x')
-plt.ylabel('y')
-plt.legend('best')
-plt.title('KB6 blade')
-plt.show()
-#plot the blade tip and the extrapolated section
-fig = plt.figure('comp_tip2')
-plt.plot(surface_blext[Ns_blade+1, : ,0], surface_blext[Ns_blade+1, : ,1], 'xr', 
-         label = 'extrap_tip')
-plt.plot(surface_blext[Ns_blade, : ,0], surface_blext[Ns_blade, : ,1], 'b', 
-         label = 'tip')
-plt.plot(surface_blext2[Ns_blade+1, : ,0], surface_blext2[Ns_blade+1, : ,1], 'g')
-plt.plot(surface_blext3[Ns_blade+1, : ,0], surface_blext3[Ns_blade+1, : ,1], 'k')
-plt.xlabel('x')
-plt.ylabel('y')
-plt.legend('best')
-plt.title('KB6 blade')
-plt.show()
