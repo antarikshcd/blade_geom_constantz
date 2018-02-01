@@ -6,7 +6,6 @@ Created on Wed Jan 24 17:22:38 2018
 @author: antariksh
 """
 import numpy as np
-from scipy import interpolate
 
 def extend_grid(surface_orig):
     """
@@ -128,7 +127,7 @@ def normal_vec(surface):
     return norm
 
 def extrapolate_surface(S, surface, ind):
-    ind0 = ind[0] # index of the third span from the edge
+    #ind0 = ind[0] # index of the third span from the edge
     ind1 = ind[1] # index of the second span from edge
     ind2 = ind[2] # index of last span
     # define X1
@@ -239,6 +238,7 @@ def extrap_np(surface_orig, rs, ts):
     """ Uses scipy's interp1D command to extraplate in x,y,z
        
     """
+    from scipy import interpolate
     # rs = number of sections beyond root
     # number of sections beyond tip
     # generate grid
@@ -262,9 +262,12 @@ def extrap_np(surface_orig, rs, ts):
         y_orig = surface_orig[:, i, 1]
         z_orig = surface_orig[:, i, 2]
         # interp1D functions for x, y, z
-        fx = interpolate.interp1d(S_orig, x_orig, kind= 'linear', fill_value = 'extrapolate')
-        fy = interpolate.interp1d(S_orig, y_orig, kind= 'linear', fill_value = 'extrapolate')
-        fz = interpolate.interp1d(S_orig, z_orig,kind= 'linear', fill_value = 'extrapolate')
+        fx = interpolate.interp1d(S_orig, x_orig, kind= 'linear', fill_value =
+                                  'extrapolate')
+        fy = interpolate.interp1d(S_orig, y_orig, kind= 'linear', fill_value =
+                                  'extrapolate')
+        fz = interpolate.interp1d(S_orig, z_orig,kind= 'linear', fill_value = 
+                                  'extrapolate')
         # obtain the interpolated x, y,z spanwise vectors
         x_ext = fx(S_ext)
         y_ext = fy(S_ext)
@@ -274,4 +277,7 @@ def extrap_np(surface_orig, rs, ts):
         surface_ext[:, i, 1] = y_ext
         surface_ext[:, i, 2] = z_ext
     
+    return grid_sext, grid_text, surface_ext
+
+
     return grid_sext, grid_text, surface_ext

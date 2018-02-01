@@ -7,21 +7,13 @@ Created on Mon Jan 22 12:52:07 2018
 """
 import numpy as np
 
-def search_plane(sin, tin, Ns, Nc, surface_orig, zc_vec, a):
+def search_plane(sin, tin, Ns, Nc, surface_orig, zc_vec):
     #Initialize the initial guess of the surface
     surface_in= np.zeros((Ns, Nc, 3), dtype= float)
     param_map_in= np.zeros((Ns, Nc, 2), dtype= int)
     t_ind = np.empty(0, dtype = int)
-    Ns_orig = surface_orig.shape[0]
     Nc_orig = surface_orig.shape[1]
     tspace_orig = np.arange(0 , Nc_orig)
-    
-    # limit the search in the extended grid corresponding to S_orig >= 0
-    #if a > 0 :
-    #    s0_ind = int(Ns_orig/(3*a))   
-    #    surface_orig[0: s0_ind , :, 0] = 9999
-    #    surface_orig[0: s0_ind , :, 1] = 9999
-    #    surface_orig[0: s0_ind , :, 2] = 9999
     
     #search in t direction and find closest t in original grid
     for j in range(Nc):
