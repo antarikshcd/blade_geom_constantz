@@ -162,52 +162,24 @@ def jacobian_Q(S, T, grid_map, val_map):
        Z22= val_map[i][3][2]
        
        # store partial derivatives of X wrt s and t
-       dXds[i]= ((t - t2)*(X11 - X21) + (t - t1)*(X22 - X12))/((s2 -s1)*(t2 - t1))
-       dXdt[i]= ((s - s2)*(X11 - X12) + (s - s1)*(X22 - X21))/((s2 -s1)*(t2 - t1))
+       dXds[i]= ((t - t2)*(X11 - X21) + (t - t1)*(X22 - X12))/((s2 -s1)*
+           (t2 - t1))
+       dXdt[i]= ((s - s2)*(X11 - X12) + (s - s1)*(X22 - X21))/((s2 -s1)*
+           (t2 - t1))
        
        # store partial derivatives of Y wrt s and t
-       dYds[i]= ((t - t2)*(Y11 - Y21) + (t - t1)*(Y22 - Y12))/((s2 -s1)*(t2 - t1))
-       dYdt[i]= ((s - s2)*(Y11 - Y12) + (s - s1)*(Y22 - Y21))/((s2 -s1)*(t2 - t1))
+       dYds[i]= ((t - t2)*(Y11 - Y21) + (t - t1)*(Y22 - Y12))/((s2 -s1)*
+           (t2 - t1))
+       dYdt[i]= ((s - s2)*(Y11 - Y12) + (s - s1)*(Y22 - Y21))/((s2 -s1)*
+           (t2 - t1))
        
        # store partial derivatives of Z wrt s and t
-       dZds[i]= ((t - t2)*(Z11 - Z21) + (t - t1)*(Z22 - Z12))/((s2 -s1)*(t2 - t1))
-       dZdt[i]= ((s - s2)*(Z11 - Z12) + (s - s1)*(Z22 - Z21))/((s2 -s1)*(t2 - t1))
+       dZds[i]= ((t - t2)*(Z11 - Z21) + (t - t1)*(Z22 - Z12))/((s2 -s1)*
+           (t2 - t1))
+       dZdt[i]= ((s - s2)*(Z11 - Z12) + (s - s1)*(Z22 - Z21))/((s2 -s1)*
+           (t2 - t1))
        
        # store the partial derivatives in a vector as input to a sparse matrix
-   #    ind= 6*i
-       
-   #    data[ind]= dXds
-   #    data[ind+1]= dXdt
-       
-   #    data[ind+2]= dYds
-   #    data[ind+3]= dYdt
-       
-   #    data[ind+4]= dZds
-   #    data[ind+5]= dZdt
-       
-       #store the correpsonding row and column locations of the corresponding data points
-   #    row[ind]=  row_x
-   #    row[ind+1]= row_x
-   #    row[ind+2]= row_y
-   #    row[ind+3]= row_y
-   #    row[ind+4]= row_z
-   #    row[ind+5]= row_z
-       
-   #    col[ind]= col_s  
-   #    col[ind+1]= col_t
-   #    col[ind+2]= col_s
-   #    col[ind+3]= col_t
-   #    col[ind+4]= col_s
-   #    col[ind+5]= col_t
-       
-       # increment the values of the row and coloumn indices
-   #    row_x+= 3
-   #    row_y+= 3
-   #    row_z+= 3
-   #    col_s+= 2
-   #    col_t+= 2
-       
-      
     #store the partial derivatives
     #TODO without for loop
     ind= np.arange(0, 6*n_points, 6)
@@ -627,6 +599,7 @@ def jacobian_main(dZds, dZdt, jac_dp, n_points, n_D, flag = False):
         row= np.append(row, row_dtNdp)
         col= np.append(col, col_dtNdp)
     # construct the main jacobian
-    jac_main= coo_matrix((data,(row, col)), shape= (2*n_points + 1, 2*n_points+1))
+    jac_main= coo_matrix((data,(row, col)), shape= (2*n_points + 1, 
+                         2*n_points+1))
     
     return jac_main

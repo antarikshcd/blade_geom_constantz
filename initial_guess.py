@@ -12,7 +12,6 @@ def search_plane(sin, tin, Ns, Nc, surface_orig, zc_vec):
     surface_in= np.zeros((Ns, Nc, 3), dtype= float)
     param_map_in= np.zeros((Ns, Nc, 2), dtype= int)
     t_ind = np.empty(0, dtype = int)
-    Ns_orig = surface_orig.shape[0]
     Nc_orig = surface_orig.shape[1]
     tspace_orig = np.arange(0 , Nc_orig)
     

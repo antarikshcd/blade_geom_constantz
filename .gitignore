@@ -1,4 +1,5 @@
-line_search/
 input_surfaces/
 solved_surfaces/
+test_surfaces/
+line_search/
 __pycache__/
