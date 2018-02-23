@@ -23,30 +23,33 @@ from vector_operations import jacobian_D
 from vector_operations import jacobian_main
 from numerical_method import newton_iteration
 from extend import extend_grid
+from interpolate import interp_surface, concat_surface
+#from distributions import distro_cosine
 #------------To be channged before each run----------------------------------
 # relaxation factor for the newton method
 alpha_max = 1 
 # set tolerance for max of residual such that Rmax < tol
 tol = 1e-5
+# set tolerance for adaptive relaxation factor alpha
+alpha_tol = 1e-8
 # flag for the line search plot
 flag_ls = 0 
 # flag to trigger the script to generate surface within the workflow
-flag_gensurf = 1 # 0: to load numpy data; 1: to load pickle data 2: generate surface
+flag_gensurf = 0 # 0: to load numpy data; 1: to load pickle data 2: generate surface
 # flag to switch for closed surfaces from open surface
 flag_surf = False # False: for open surface; True: for closed surface 
 # flag to include the end point ie the tip
-flag_endpoint = False
+flag_endpoint = True
 # filename to load data (Note: set optimization_file if flag_gensurf = 3)
-#filename = './input_surfaces/KB6_surface_S1000_C1000_fv1_shearsweep'
-filename = './input_surfaces/KB6_surface_S500_C100'
+filename = './input_surfaces/KB6_surface_S1000_C1000_fv1_shearsweep'
+#filename = './input_surfaces/KB6_surface_S100_C200_final'
 #filename = './input_surfaces/KB6_surface_S100_C100_fv2'
-#filename = './input_surfaces/KB1_surface_S500_C100'
 # initialize the desired slice points and spanwise sections
-Ns = 500 # span
+Ns = 100 # span
 n_points = 100 # points on a slice (Note: also cross-sectional points)
 # testing for specific spans
 span_low = 0 # span to be calculated
-span_high = Ns-1 # upper limit excluded
+span_high = Ns # upper limit excluded
 # set blade length in metres
 blade_length = 10.5538 # in metres for KB6
 #blade_length= 11.0639 # in metres for KB1
@@ -60,7 +63,7 @@ surface_orig *= blade_length
 zc_vec = np.linspace(0, 1*blade_length, Ns, endpoint = flag_endpoint)
 #zc_vec = distro_cosine(Ns, 1*blade_length, end = False)
 # initialize the array for the final surface being generated
-surface_new = np.zeros((Ns-1, n_points, 3), dtype = float)
+surface_new = np.zeros((Ns, n_points, 3), dtype = float)
 # initialize the initial state vector--> S_i, T_i, S_(i+1), T_(i+1) 
 Pk_in = np.zeros(2*n_points+1, dtype = float)
 # initialize the intended S points indices in state vector
@@ -81,6 +84,8 @@ grid_s, grid_t, surface_ext = extend_grid(surface_orig)
 count_store = np.zeros(Ns, dtype = int) # stores the iterations per section
 # list to store the state (S,T) data for each section and iteration
 state_store = [] 
+# sore the span index for uncoverged sections
+delspan_ind = []
 #---------------------------------------------------------------------------
 #
 # initialize the intended initial S points on slice
@@ -195,10 +200,32 @@ for i in range(span_low, span_high):
         R_norm_prev = R_norm
         # store the state
         Pk_store.append(Pk)
+        
+        # escape clause for very low alphs
+        if alpha < alpha_tol:
+           # escape the section 
+           delspan_ind.append(i)
+           # print
+           print('\n\n Skipping section %i, radius = %3.2f\n\n'%(i, zc))
+           # set exit flag as False
+           exit_flag = 0
+           
     # store the count every iteration
     count_store[i] = count 
     # store the states per section
     state_store.append(Pk_store)
+
+
+# interpolated across the missing surfaces
+
+if delspan_ind:
+    # get the concatenated surface
+    surface_concat = concat_surface(surface_new, delspan_ind)    
+# the end missing surfaces near the tip are currently extruded    
+for i in delspan_ind:
+    
+    surface_new[i, :, :] = interp_surface(surface_concat, zc_vec[i], i)
+
     
 #record the time    
 tend = time.time()
@@ -221,4 +248,4 @@ if span_high - span_low == 1:
     plt.legend(loc = 'best')
 else:
     # save the file as a numpy readable
-    np.save('KB6_parsurf_s%ic%i_fv6.npy'%(Ns, n_points), surface_new)
+    np.save('KB6_parsurf_s%ic%i_test.npy'%(Ns, n_points), surface_new)

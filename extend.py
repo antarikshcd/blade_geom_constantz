@@ -169,7 +169,8 @@ def extrapolate_surface(S, surface, ind):
     Z3 = Z2 + dZds*(S[ind2 - 1] - S[ind1 - 1])
     
     return X3, Y3, Z3
-    
+
+# NOTE: currently not in use    
 def extrap_grid(surface_orig, N_s, N_c, a):
     """
     Boundary correction by extending the parametric grid in S and T. This is
@@ -234,6 +235,7 @@ def extrap_grid(surface_orig, N_s, N_c, a):
 
     return grid_s, grid_t, surface_ext
 
+# NOTE: currently not in use    
 def extrap_np(surface_orig, rs, ts):
     """ Uses scipy's interp1D command to extraplate in x,y,z
        
@@ -277,7 +279,4 @@ def extrap_np(surface_orig, rs, ts):
         surface_ext[:, i, 1] = y_ext
         surface_ext[:, i, 2] = z_ext
     
-    return grid_sext, grid_text, surface_ext
-
-
     return grid_sext, grid_text, surface_ext
